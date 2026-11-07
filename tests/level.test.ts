@@ -68,11 +68,14 @@ describe('통 조건 판정', () => {
 });
 
 describe('예산', () => {
-  it('예산 = 참조 가격 × 1.25 올림', () => {
-    expect(budgetFromReference(8)).toBe(10);
-    expect(budgetFromReference(7)).toBe(9); // 8.75
-    expect(budgetFromReference(10)).toBe(13); // 12.5
+  it('예산 = 참조 가격 × 2', () => {
+    expect(budgetFromReference(8)).toBe(16);
+    expect(budgetFromReference(7)).toBe(14);
     expect(budgetFromReference(0)).toBe(0);
+  });
+  it('여유분 비율을 따로 주면 올림', () => {
+    expect(budgetFromReference(7, 25)).toBe(9); // 8.75
+    expect(budgetFromReference(10, 25)).toBe(13); // 12.5
   });
   it('초과 판정: 같으면 통과, 1 넘으면 초과', () => {
     expect(overBudget(10, 10)).toBe(false);

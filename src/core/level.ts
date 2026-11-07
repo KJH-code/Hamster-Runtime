@@ -63,8 +63,8 @@ export interface Level {
   solution?: Layout;
 }
 
-export const BUDGET_MARGIN_PERCENT = 25;
-/** 예산 = 참조 풀이 가격 + 25% (올림) */
+export const BUDGET_MARGIN_PERCENT = 100;
+/** 예산 = 참조 풀이 가격 × 2 (올림) */
 export function budgetFromReference(price: number, marginPercent = BUDGET_MARGIN_PERCENT): number {
   return Math.ceil((price * (100 + marginPercent)) / 100);
 }

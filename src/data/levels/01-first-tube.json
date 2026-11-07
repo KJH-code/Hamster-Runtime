@@ -15,10 +15,10 @@
     { "red": 2, "blue": 1 }
   ],
   "allowed": {
-    "minos": ["I-tube", "O-tube", "L-tube", "J-tube"],
+    "minos": ["I-tube", "I-empty", "O-tube", "O-empty", "T-tube-a", "T-tube-b", "T-empty", "S-tube", "S-empty", "Z-tube", "Z-empty", "L-tube", "L-empty", "J-tube", "J-empty"],
     "parts": []
   },
-  "budget": 5,
+  "budget": 8,
   "solution": {
     "minos": [
       { "id": "J-tube", "r": 0, "x": 0, "y": 4 },

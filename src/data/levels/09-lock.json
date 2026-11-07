@@ -17,10 +17,10 @@
     { "red": 2, "blue": 2 }
   ],
   "allowed": {
-    "minos": [],
-    "parts": ["sensor", "motor", "gear"]
+    "minos": ["I-tube", "I-empty", "O-tube", "O-empty", "T-tube-a", "T-tube-b", "T-empty", "S-tube", "S-empty", "Z-tube", "Z-empty", "L-tube", "L-empty", "J-tube", "J-empty"],
+    "parts": ["sensor", "gear", "motor", "switch", "plug"]
   },
-  "budget": 7,
+  "budget": 10,
   "fixed": {
     "minos": [
       { "id": "J-tube", "r": 0, "x": 0, "y": 2 },
