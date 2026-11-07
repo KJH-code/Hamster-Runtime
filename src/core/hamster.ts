@@ -12,7 +12,7 @@
 import { Board } from './board';
 import { analyze, drive, gridAdjacency, isLocked, type DriveResult, type GearSystem } from './gears';
 import {
-  BIN_COUNT,
+  binCount,
   BIN_WIDTH,
   Cell,
   Dir,
@@ -118,7 +118,7 @@ export class Simulation {
   }
 
   private binAt(x: number): void {
-    this.bin = Math.min(BIN_COUNT - 1, Math.floor(x / BIN_WIDTH));
+    this.bin = Math.min(binCount(this.board.w) - 1, Math.floor(x / BIN_WIDTH));
     this.finish('binned');
   }
 

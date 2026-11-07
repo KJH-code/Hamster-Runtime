@@ -30,8 +30,12 @@ export interface ShapeCell {
 
 export const BOARD_W = 10;
 export const BOARD_H = 14;
+/** 기본 판(10칸)의 통 개수. 판마다는 binCount(w) 를 쓴다 */
 export const BIN_COUNT = 5;
 export const BIN_WIDTH = 2;
+export function binCount(w: number): number {
+  return Math.ceil(w / BIN_WIDTH);
+}
 
 export function opposite(s: Sides): Sides {
   return s === N ? S : s === S ? N : s === E ? W : E;

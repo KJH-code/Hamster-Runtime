@@ -1,6 +1,6 @@
 import type { Board } from '../core/board';
 import type { Simulation } from '../core/hamster';
-import { BIN_COUNT, BIN_WIDTH, Cell, E, N, S, ShapeCell, SIDE_LIST, SwitchState } from '../core/types';
+import { binCount, BIN_WIDTH, Cell, E, N, S, ShapeCell, SIDE_LIST, SwitchState } from '../core/types';
 
 export const CELL = 40;
 export const TOP_ROWS = 1; // 투입구 줄
@@ -294,7 +294,7 @@ export function render(ctx: CanvasRenderingContext2D, st: RenderState) {
 
   // 통
   const by = oy + board.h * CELL;
-  for (let i = 0; i < BIN_COUNT; i++) {
+  for (let i = 0; i < binCount(board.w); i++) {
     const bx = i * BIN_WIDTH * CELL;
     ctx.fillStyle = st.lastBin === i ? '#3b6e3f' : '#20242f';
     ctx.fillRect(bx + 2, by + 2, BIN_WIDTH * CELL - 4, CELL - 4);
