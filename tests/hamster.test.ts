@@ -37,7 +37,7 @@ describe('낙하와 통', () => {
     expect(s.steps).toBeGreaterThan(14); // 튜브를 통과해 판 바닥까지
   });
   it('미노의 빈칸 요소는 통과', () => {
-    const defs: MinoDef[] = [{ id: 'E', name: 'E', rows: [['empty', 'empty'], ['empty', 'empty']] }];
+    const defs: MinoDef[] = [{ id: 'E', name: 'E', piece: 'O', rows: [['empty', 'empty'], ['empty', 'empty']] }];
     const b = new Board();
     b.place('E', 0, 4, 6, defs);
     const s = makeSim(b, 'left', 4);

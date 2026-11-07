@@ -52,6 +52,11 @@ export class Board {
 
   place(defId: string, rot: number, x: number, y: number, defs: MinoDef[] = MINOS): Placed | null {
     const shape = rotateShape(buildShape(findDef(defId, defs)), rot);
+    return this.placeCells(defId, rot, shape, x, y);
+  }
+
+  /** 이미 회전된 칸 목록을 (x,y) 기준으로 놓는다. 중력 모드(SRS 상자 좌표)에서 쓴다 */
+  placeCells(defId: string, rot: number, shape: ShapeCell[], x: number, y: number): Placed | null {
     if (!this.canPlace(shape, x, y)) return null;
     const p: Placed = { uid: this.nextUid++, defId, rot: ((rot % 4) + 4) % 4, x, y, cells: shape };
     for (const c of shape) {
@@ -64,6 +69,13 @@ export class Board {
   }
 
   /** 해당 칸을 차지한 미노를 통째로 지운다 */
+  removeUid(uid: number): boolean {
+    const p = this.placed.find((q) => q.uid === uid);
+    if (!p) return false;
+    const c = p.cells[0]!;
+    return this.removeAt(p.x + c.x, p.y + c.y);
+  }
+
   removeAt(x: number, y: number): boolean {
     if (!this.inBounds(x, y)) return false;
     const uid = this.owner[this.idx(x, y)];
