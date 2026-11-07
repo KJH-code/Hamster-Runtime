@@ -12,7 +12,7 @@
 import { Board } from './board';
 import { analyze, drive, gridAdjacency, isLocked, type DriveResult, type GearSystem } from './gears';
 import { computeLinks, degree, type Links } from './links';
-import { activeArm, switchArms } from './parts';
+import { activeArm } from './parts';
 import { BIN_WIDTH, binCount, Dir, N, opposite, S, Sides, sideDelta, SIDE_LIST, SwitchState } from './types';
 
 export type Status = 'running' | 'binned' | 'dead' | 'junction' | 'crashed' | 'out' | 'loop';
@@ -34,7 +34,6 @@ export class Simulation {
   readonly sys: GearSystem;
   readonly nodeCells: { x: number; y: number }[] = [];
   readonly nodeOfCell = new Map<number, number>();
-  readonly armCount = new Map<number, number>();
   switches = new Map<number, SwitchState>(); // 키 = 노드 번호
   locked = new Set<number>();
 
@@ -67,7 +66,6 @@ export class Simulation {
       if (part.type !== 'switch') return;
       const i = board.idx(p.x, p.y);
       this.switches.set(node, opts.switches?.get(i) ?? part.start ?? 'A');
-      this.armCount.set(node, switchArms(part.arms!, part.common!).length);
     });
     if (opts.locked) this.locked = new Set(opts.locked);
     this.x = opts.inject === 'left' ? 0 : board.w - 1;
@@ -127,7 +125,7 @@ export class Simulation {
       if (p?.type === 'motor') drives.set(this.nodeOfCell.get(this.board.idx(x + dx, y + dy))!, p.dir!);
     }
     if (drives.size === 0) return;
-    const r = drive(this.sys, drives, this.switches, this.locked, this.armCount);
+    const r = drive(this.sys, drives, this.switches, this.locked);
     this.switches = r.switches;
     this.locked = r.locked;
     this.lastDrive = r;

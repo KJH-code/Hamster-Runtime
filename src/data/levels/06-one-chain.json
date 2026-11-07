@@ -43,10 +43,10 @@
       { "id": "I-empty", "r": 1, "x": 4, "y": 6 }
     ],
     "parts": [
-      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "A" },
-      { "x": 8, "y": 6, "type": "switch", "common": "N", "start": "B" },
+      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "B" },
+      { "x": 8, "y": 6, "type": "switch", "common": "N", "start": "A" },
       { "x": 4, "y": 7, "type": "sensor" },
-      { "x": 5, "y": 7, "type": "motor", "dir": "ccw" },
+      { "x": 5, "y": 7, "type": "motor", "dir": "cw" },
       { "x": 5, "y": 6, "type": "gear" },
       { "x": 4, "y": 6, "type": "gear" },
       { "x": 6, "y": 6, "type": "gear" },

@@ -69,9 +69,9 @@ describe('메커니즘을 건너뛰는 풀이는 막혀 있다', () => {
     for (const [x, y] of [[2, 1], [3, 1], [3, 4], [5, 3], [0, 0]] as const)
       expect(solve(lv, { minos: [], parts: [{ x, y, type: 'plug' }] }).judgement?.clear ?? false, `${x},${y}`).toBe(false);
   });
-  it('3: 시작 상태 A 로는 실패', () => {
+  it('3: 시작 상태 B 로는 실패', () => {
     const lv = byId('03');
-    expect(solve(lv, { minos: [], parts: [{ x: 3, y: 6, type: 'switch', common: 'N', start: 'A' }] }).judgement!.clear).toBe(false);
+    expect(solve(lv, { minos: [], parts: [{ x: 3, y: 6, type: 'switch', common: 'N', start: 'B' }] }).judgement!.clear).toBe(false);
   });
   it('4: 센서 없이 스위치만으로는 첫 마리만 다르게 못 보낸다', () => {
     const lv = byId('04');
@@ -81,7 +81,7 @@ describe('메커니즘을 건너뛰는 풀이는 막혀 있다', () => {
   it('5: 모터 방향을 반대로 하면 스위치가 거부·잠김', () => {
     const lv = byId('05');
     const wrong = structuredClone(lv.solution!);
-    wrong.parts[0]!.dir = 'cw';
+    wrong.parts[0]!.dir = 'cw' === wrong.parts[0]!.dir ? 'ccw' : 'cw';
     const j = solve(lv, wrong).judgement!;
     expect(j.clear).toBe(false);
     expect(j.tally.bins[3]).toEqual([2, 2]); // 전부 A 쪽

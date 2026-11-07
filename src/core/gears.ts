@@ -71,7 +71,7 @@ export function isLocked(sys: GearSystem, locked: Set<number>, node: number): bo
  * switches: 스위치 노드 → 현재 상태.
  * 규칙:
  *  - 같은 연결 요소를 서로 반대 방향으로 동시에 구동하면 그 요소가 잠긴다 (같은 방향이면 허용)
- *  - 스위치: 시계 = A→B(→C), 반시계 = (C→)B→A. 끝 상태에서 같은 방향이면 회전 거부 → 요소 전체 잠김,
+ *  - 스위치(ㄱ자 관): 시계 = A→B, 반시계 = B→A. 끝 상태에서 같은 방향이면 회전 거부 → 요소 전체 잠김,
  *    그 구동으로 그 요소의 어떤 스위치도 바뀌지 않는다
  *  - 이미 잠긴 요소는 아무 일도 일어나지 않는다
  */
@@ -80,8 +80,6 @@ export function drive(
   drives: Map<number, Dir>,
   switches: Map<number, SwitchState>,
   locked: Set<number>,
-  /** 스위치 노드 → 갈래 수(공통 제외: 2 = A/B, 3 = A/B/C). 없으면 2 */
-  armCount: Map<number, number> = new Map(),
 ): DriveResult {
   const outSwitches = new Map(switches);
   const outLocked = new Set(locked);
@@ -114,7 +112,7 @@ export function drive(
     let rejected = false;
     const nextState = (node: number): SwitchState | null => {
       const k = SWITCH_STATES.indexOf(switches.get(node)!) + dirOf(node);
-      return k < 0 || k >= (armCount.get(node) ?? 2) ? null : SWITCH_STATES[k]!;
+      return k < 0 || k >= SWITCH_STATES.length ? null : SWITCH_STATES[k]!;
     };
     for (const node of compSwitches) if (nextState(node) === null) rejected = true;
     if (rejected) {

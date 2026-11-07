@@ -237,8 +237,8 @@ export function startSandbox(
     if (k === 'ArrowDown') return handled(e, () => move(0, 1));
     if (k === 'ArrowUp') return handled(e, () => move(0, -1));
     if (lower === 'x' || lower === 'z') return handled(e, () => result(ed.rotateSwitch(cursor.x, cursor.y, lower === 'x' ? 1 : -1), '스위치 공통 갈래 바꿈'));
-    if (lower === 'a' || lower === 'b' || lower === 'c')
-      return handled(e, () => result(ed.setSwitchStart(cursor.x, cursor.y, lower.toUpperCase() as 'A' | 'B' | 'C'), `시작 상태 ${lower.toUpperCase()}`));
+    if (lower === 'a' || lower === 'b')
+      return handled(e, () => result(ed.setSwitchStart(cursor.x, cursor.y, lower.toUpperCase() as 'A' | 'B'), `시작 상태 ${lower.toUpperCase()}`));
     if (k === ' ' || k === 'Enter') return handled(e, () => {
       const p = PARTS[partIdx]!;
       result(ed.placePart(cursor.x, cursor.y, p.type, p.dir), `${p.label} 놓음`);
@@ -343,7 +343,7 @@ export function startSandbox(
       mode === 'mino'
         ? [['1~7', '모양'], ['Q / E', '변형(튜브/빈) 순환'], ['방향키', '미노 이동'], ['X / Z', '회전 (시계/반시계)'], ['Space / Enter', '놓기'], ['Delete', '겹치는 미노 제거'], ['F', '겹치는 미노 고정(레벨용)']]
         : mode === 'part'
-          ? [['1~6', '부품'], ['방향키', '칸 커서 이동'], ['Space / Enter', '부품 놓기'], ['X / Z', '스위치 공통 갈래 돌리기'], ['A / B / C', '스위치 시작 상태'], ['Delete', '부품 제거 (없으면 미노)'], ['F', '부품 고정(레벨용)']]
+          ? [['1~6', '부품'], ['방향키', '칸 커서 이동'], ['Space / Enter', '부품 놓기'], ['X / Z', '스위치 공통 갈래 돌리기'], ['A / B', '스위치 시작 상태'], ['Delete', '부품 제거 (없으면 미노)'], ['F', '부품 고정(레벨용)']]
           : mode === 'queue'
             ? [['↑ / ↓', '햄스터 선택'], ['← / →', '투입구 왼/오'], ['1 / 2', '색 빨강/파랑'], ['Space / Enter', '선택 뒤에 추가'], ['Delete', '삭제']]
             : [['↑ / ↓', '항목 고르기'], ['← / →', '숫자 바꾸기'], ['Space', '사용 가능 켜고 끄기'], ['Enter', '글자 넣기'], ['P', '현재 배치를 참조 풀이로 저장'], ['T', '저장한 레벨 시험 플레이']];

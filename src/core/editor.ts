@@ -7,9 +7,9 @@ import { MINOS, type MinoDef } from '../data/minos';
 import { Board, findDef } from './board';
 import { computeLinks } from './links';
 import { buildShape, rotateShape } from './mino';
-import { cycleCommon, partRuleError, switchArms, PART_NAMES } from './parts';
+import { cycleCommon, defaultCommon, partRuleError, PART_NAMES } from './parts';
 import type { QueueItem } from './hamster';
-import { BOARD_H, BOARD_W, Dir, Part, PartType, ShapeCell, SwitchState, SWITCH_STATES } from './types';
+import { BOARD_H, BOARD_W, Dir, Part, PartType, ShapeCell, SwitchState } from './types';
 
 interface Snapshot {
   w: number;
@@ -131,7 +131,7 @@ export class Editor {
       if (type === 'switch') {
         part.arms = links.link[i]!;
         // 기본 공통 갈래: 경로가 미노 안에서 들어오는 변
-        part.common = this.board.cells[i]!.inner;
+        part.common = defaultCommon(part.arms, this.board.cells[i]!.inner);
         part.start = 'A';
       }
       this.board.parts.set(i, part);
@@ -152,9 +152,9 @@ export class Editor {
     return this.edit(() => {
       const p = this.board.partAt(x, y);
       if (p?.type !== 'switch') return fail('스위치가 아니다');
-      p.common = cycleCommon(p.arms!, p.common!, dir);
-      const n = switchArms(p.arms!, p.common).length;
-      if (SWITCH_STATES.indexOf(p.start!) >= n) p.start = 'A';
+      const next = cycleCommon(p.arms!, p.common!, dir);
+      if (next === p.common) return fail('이 분기점에서는 공통 갈래를 다른 쪽으로 돌릴 수 없다 (양옆 직각 갈래가 있어야 한다)');
+      p.common = next;
       return OK;
     });
   }
@@ -162,7 +162,6 @@ export class Editor {
     return this.edit(() => {
       const p = this.board.partAt(x, y);
       if (p?.type !== 'switch') return fail('스위치가 아니다');
-      if (SWITCH_STATES.indexOf(state) >= switchArms(p.arms!, p.common!).length) return fail(`이 스위치에는 ${state} 갈래가 없다`);
       p.start = state;
       return OK;
     });

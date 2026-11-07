@@ -36,16 +36,15 @@ describe('부품 편집', () => {
     expect(r).toEqual({ ok: false, reason: expect.stringMatching(/빈칸/) });
     expect(ed.board.parts.size).toBe(0);
   });
-  it('스위치: 기본 공통 = 경로가 들어오는 변, 시작 A. 회전 키로 공통 순환, 갈래 없는 상태는 거부', () => {
+  it('스위치: 기본 공통 = 경로가 들어오는 변(위), 시작 A. T자는 기둥만 공통이라 돌리기 거부', () => {
     const ed = junction();
     expect(ed.placePart(5, 3, 'switch').ok).toBe(true);
     const p = ed.board.partAt(5, 3)!;
     expect(p.common).toBe(1); // N
     expect(p.start).toBe('A');
     expect(ed.setSwitchStart(5, 3, 'B').ok).toBe(true);
-    expect(ed.setSwitchStart(5, 3, 'C').ok).toBe(false); // 3갈래 스위치에는 C 없음
-    expect(ed.rotateSwitch(5, 3, 1).ok).toBe(true);
-    expect(ed.board.partAt(5, 3)!.common).toBe(2); // E
+    expect(ed.rotateSwitch(5, 3, 1).ok).toBe(false);
+    expect(ed.board.partAt(5, 3)!.common).toBe(1);
   });
   it('스위치가 놓인 분기점의 갈래를 바꾸는 편집은 거부: 아래에 끝 붙이기, 옆 미노 지우기, 옆 끝에 마개', () => {
     const ed = junction();

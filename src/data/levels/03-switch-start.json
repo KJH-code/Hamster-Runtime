@@ -33,7 +33,7 @@
   "solution": {
     "minos": [],
     "parts": [
-      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "B" }
+      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "A" }
     ]
   }
 }

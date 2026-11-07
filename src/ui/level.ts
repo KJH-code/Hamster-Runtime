@@ -144,8 +144,8 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       if (k === 'ArrowDown') return done(() => move(0, 1));
       if (k === 'ArrowUp') return done(() => move(0, -1));
       if (lower === 'x' || lower === 'z') return done(() => res(play.rotateSwitch(cursor.x, cursor.y, lower === 'x' ? 1 : -1), '스위치 공통 갈래 바꿈'));
-      if (lower === 'a' || lower === 'b' || lower === 'c')
-        return done(() => res(play.setSwitchStart(cursor.x, cursor.y, lower.toUpperCase() as 'A' | 'B' | 'C'), `시작 상태 ${lower.toUpperCase()}`));
+      if (lower === 'a' || lower === 'b')
+        return done(() => res(play.setSwitchStart(cursor.x, cursor.y, lower.toUpperCase() as 'A' | 'B'), `시작 상태 ${lower.toUpperCase()}`));
       if (k === ' ' || k === 'Enter') return done(() => {
         const p = parts[partIdx];
         if (!p) return say('이 레벨에서는 부품을 쓸 수 없다');
@@ -234,7 +234,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     const rows: [string, string][] =
       mode === 'mino'
         ? [['1~7', '모양 고르기(나타남)'], ['Q / E', '변형'], ['← →', '이동'], ['↓', '한 칸 내리기'], ['X / Z', '회전'], ['Space', '떨어뜨리기'], ['Delete', '마지막 미노 지우기']]
-        : [['숫자', '부품'], ['방향키', '커서'], ['Space', '놓기'], ['X / Z', '스위치 공통 갈래'], ['A / B / C', '스위치 시작 상태'], ['Delete', '부품 지우기']];
+        : [['숫자', '부품'], ['방향키', '커서'], ['Space', '놓기'], ['X / Z', '스위치 공통 갈래'], ['A / B', '스위치 시작 상태'], ['Delete', '부품 지우기']];
     rows.push(['Shift', '미노 ↔ 부품'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시'], ['R', '실행 / 리셋'], ['Esc', '레벨 목록']);
     for (const [kk, what] of rows) {
       const row = el('div', 'krow');

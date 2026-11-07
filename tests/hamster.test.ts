@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Board } from '../src/core/board';
 import { QueueRun, Simulation } from '../src/core/hamster';
-import { E, N, type SwitchState } from '../src/core/types';
+import { E, N, W, type SwitchState } from '../src/core/types';
 import { part, put, sw } from './helpers';
 
 /** 열 x 에서 떨어뜨린다 (투입구는 좌/우 끝이지만 테스트 편의로 아무 열) */
@@ -91,37 +91,38 @@ describe('분기점과 스위치', () => {
     expect(s.run()).toBe('junction');
     expect([s.x, s.y]).toEqual([5, 3]);
   });
-  it('공통 = 위: A(시계 첫 갈래 = 오른쪽) → 통 5, B(왼쪽) → 통 0', () => {
+  it('공통 = 위: A(반시계 쪽 = 왼쪽) → 통 0, B(시계 쪽 = 오른쪽) → 통 5', () => {
     const b = three();
     sw(b, 5, 3, N, 'A');
     const a = drop(b, 5);
     expect(a.run()).toBe('binned');
-    expect(a.bin).toBe(5);
+    expect(a.bin).toBe(0);
     sw(b, 5, 3, N, 'B');
     const bb = drop(b, 5);
     bb.run();
-    expect(bb.bin).toBe(0);
+    expect(bb.bin).toBe(5);
   });
-  it('공통 = 오른쪽: 위에서 오면 위는 갈래 B. 상태 A(왼쪽 열림)면 막다른 길, B 면 공통(오른쪽)으로', () => {
+  it('4갈래 공통 위: 아래(맞은편)로는 절대 안 간다 — A 왼쪽 통 0, B 오른쪽 통 5', () => {
     const b = three();
-    sw(b, 5, 3, E, 'A');
-    expect(drop(b, 5).run()).toBe('dead');
-    sw(b, 5, 3, E, 'B');
-    const s = drop(b, 5);
-    expect(s.run()).toBe('binned');
-    expect(s.bin).toBe(5);
-  });
-  it('4갈래: 공통 위, A 오른쪽 / B 아래 / C 왼쪽', () => {
-    const b = three();
-    put(b, 'I-tube', 0, 5, 4); // (5,4)~(5,7) 아랫끝 출구 S → 판 밖 아래 = 통 2
+    put(b, 'I-tube', 0, 5, 4); // (5,4)~(5,7) 아래 갈래
     const res: (number | null)[] = [];
-    for (const st of ['A', 'B', 'C'] as const) {
+    for (const st of ['A', 'B'] as const) {
       sw(b, 5, 3, N, st);
       const s = drop(b, 5);
       s.run();
       res.push(s.bin);
     }
-    expect(res).toEqual([5, 2, 0]);
+    expect(res).toEqual([0, 5]);
+  });
+  it('4갈래 공통 왼쪽: 위에서 들어오면 B(시계 쪽 = 위)일 때만 공통(왼쪽)으로, A(아래)면 막다른 길', () => {
+    const b = three();
+    put(b, 'I-tube', 0, 5, 4);
+    sw(b, 5, 3, W, 'A');
+    expect(drop(b, 5).run()).toBe('dead');
+    sw(b, 5, 3, W, 'B');
+    const s = drop(b, 5);
+    expect(s.run()).toBe('binned');
+    expect(s.bin).toBe(0);
   });
 });
 
@@ -131,7 +132,7 @@ describe('센서 → 모터 → 기어 → 스위치', () => {
    *   오른쪽: 모터 반시계 (7,2) — O빈 (6,1) 위 — 기어 (6,2), 기어 (5,2)(세로 튜브 위) → 스위치
    *   왼쪽: 모터 시계 (3,4) — I빈 가로 (2..5,4) 위 — 기어 (4,4), (5,4) → 스위치
    *   모터에서 스위치까지 거리 3(홀수) → 스위치는 모터 반대로 돈다
-   *   A(오른쪽)로 가면 센서→반시계 모터→스위치 시계 A→B, B(왼쪽)로 가면 시계 모터→스위치 반시계 B→A
+   *   A(왼쪽)로 가면 센서→반시계 모터(3,4)→스위치 시계 A→B, B(오른쪽)로 가면 시계 모터(7,2)→스위치 반시계 B→A
    */
   const toggle = () => {
     const b = new Board(12, 8);
@@ -143,15 +144,15 @@ describe('센서 → 모터 → 기어 → 스위치', () => {
     sw(b, 5, 3, N, 'A');
     part(b, 7, 3, { type: 'sensor' });
     part(b, 3, 3, { type: 'sensor' });
-    part(b, 7, 2, { type: 'motor', dir: -1 });
+    part(b, 7, 2, { type: 'motor', dir: 1 });
     part(b, 6, 2, { type: 'gear' });
     part(b, 5, 2, { type: 'gear' });
-    part(b, 3, 4, { type: 'motor', dir: 1 });
+    part(b, 3, 4, { type: 'motor', dir: -1 });
     part(b, 4, 4, { type: 'gear' });
     part(b, 5, 4, { type: 'gear' });
     return b;
   };
-  it('햄스터가 지날 때마다 스위치가 번갈아 바뀌어 통 5, 0, 5, 0', () => {
+  it('햄스터가 지날 때마다 스위치가 번갈아 바뀌어 통 0, 5, 0, 5', () => {
     const b = toggle();
     let switches: Map<number, SwitchState> | undefined;
     let locked: Set<number> | undefined;
@@ -164,11 +165,11 @@ describe('센서 → 모터 → 기어 → 스위치', () => {
       locked = s.locked;
       expect(locked.size).toBe(0);
     }
-    expect(bins).toEqual([5, 0, 5, 0]);
+    expect(bins).toEqual([0, 5, 0, 5]);
   });
   it('모터 방향을 바꾸면 회전 거부 → 연결 요소 전체 잠김', () => {
     const b = toggle();
-    part(b, 7, 2, { type: 'motor', dir: 1 }); // 이제 스위치를 반시계로 돌리려 함: A 에서 반시계 = 거부
+    part(b, 3, 4, { type: 'motor', dir: 1 }); // 이제 스위치를 반시계로 돌리려 함: A 에서 반시계 = 거부
     const s = drop(b, 5);
     s.run();
     expect(s.switchStateAt(5, 3)).toBe('A');

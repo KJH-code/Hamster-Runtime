@@ -35,9 +35,9 @@
       { "id": "O-empty", "r": 0, "x": 4, "y": 4 }
     ],
     "parts": [
-      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "A" },
+      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "B" },
       { "x": 4, "y": 6, "type": "sensor" },
-      { "x": 4, "y": 5, "type": "motor", "dir": "cw" },
+      { "x": 4, "y": 5, "type": "motor", "dir": "ccw" },
       { "x": 3, "y": 5, "type": "gear" }
     ]
   }
