@@ -1,65 +1,47 @@
 import type { MinoDef } from '../data/minos';
-import { Cell, E, N, rotateSides, S, ShapeCell, Sides, W } from './types';
+import { Cell, E, N, rotateSides, S, ShapeCell, W } from './types';
 
-const SIDE_CHAR: Record<string, Sides> = { N, E, S, W };
-
-function parseSides(str: string): Sides {
-  let m = 0;
-  for (const ch of str.replace(/,/g, '')) {
-    const v = SIDE_CHAR[ch];
-    if (v === undefined) throw new Error(`알 수 없는 변 '${ch}' in '${str}'`);
-    m |= v;
-  }
-  return m;
-}
-
-export function parseToken(tok: string): Cell {
-  const [kind, arg = ''] = tok.split(':');
-  switch (kind) {
-    case 'empty':
-      return { kind: 'empty', open: 0 };
-    case 'gear':
-      return { kind: 'gear', open: 0 };
-    case 'tube':
-      return { kind: 'tube', open: parseSides(arg) };
-    case 'sensor':
-      return { kind: 'sensor', open: parseSides(arg) };
-    case 'motor':
-      if (arg !== 'cw' && arg !== 'ccw') throw new Error(`motor 방향은 cw/ccw: '${tok}'`);
-      return { kind: 'motor', open: 0, dir: arg === 'cw' ? 1 : -1 };
-    case 'switch': {
-      const [c, a, b] = arg.split(',');
-      if (!c || !a || !b) throw new Error(`switch 는 '공통,A갈래,B갈래': '${tok}'`);
-      const common = parseSides(c);
-      const armA = parseSides(a);
-      const armB = parseSides(b);
-      return { kind: 'switch', open: common | armA | armB, common, armA, armB };
-    }
-    default:
-      throw new Error(`알 수 없는 칸 토큰 '${tok}'`);
-  }
-}
-
-/** 데이터 정의 → 칸 목록 (회전 0) */
+/** 데이터 정의 → 칸 목록 (회전 0). 경로 번호가 이어지지 않으면 오류 */
 export function buildShape(def: MinoDef): ShapeCell[] {
+  const tubes: { x: number; y: number; k: number }[] = [];
   const out: ShapeCell[] = [];
   def.rows.forEach((row, y) =>
-    row.forEach((tok, x) => {
-      if (tok !== '') out.push({ x, y, cell: parseToken(tok) });
+    [...row].forEach((ch, x) => {
+      if (ch === ' ') return;
+      if (ch === 'e') out.push({ x, y, cell: { kind: 'empty', inner: 0, end: false } });
+      else if (/^[1-9]$/.test(ch)) tubes.push({ x, y, k: Number(ch) });
+      else throw new Error(`미노 '${def.id}': 알 수 없는 글자 '${ch}'`);
     }),
   );
+  tubes.sort((a, b) => a.k - b.k);
+  tubes.forEach((t, i) => {
+    if (t.k !== i + 1) throw new Error(`미노 '${def.id}': 경로 번호는 1부터 빠짐없이 (${t.k})`);
+  });
+  if (tubes.length === 1) throw new Error(`미노 '${def.id}': 경로는 2칸 이상`);
+  const sideTo = (a: { x: number; y: number }, b: { x: number; y: number }) => {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    if (dx === 1 && dy === 0) return E;
+    if (dx === -1 && dy === 0) return W;
+    if (dx === 0 && dy === 1) return S;
+    if (dx === 0 && dy === -1) return N;
+    throw new Error(`미노 '${def.id}': 경로 ${'' + a} 와 다음 칸이 붙어 있지 않다`);
+  };
+  tubes.forEach((t, i) => {
+    let inner = 0;
+    if (i > 0) inner |= sideTo(t, tubes[i - 1]!);
+    if (i < tubes.length - 1) inner |= sideTo(t, tubes[i + 1]!);
+    const end = i === 0 || i === tubes.length - 1;
+    out.push({ x: t.x, y: t.y, cell: { kind: 'tube', inner, end } });
+  });
   return out;
 }
 
 export function rotateCell(c: Cell): Cell {
-  const r: Cell = { ...c, open: rotateSides(c.open) };
-  if (c.common !== undefined) r.common = rotateSides(c.common);
-  if (c.armA !== undefined) r.armA = rotateSides(c.armA);
-  if (c.armB !== undefined) r.armB = rotateSides(c.armB);
-  return r;
+  return { ...c, inner: rotateSides(c.inner) };
 }
 
-/** 시계 방향 90° 회전. 거울(뒤집기)은 없다. 좌상단을 (0,0)으로 정규화 */
+/** 시계 방향 90° × times. 거울 없음. 좌상단을 (0,0)으로 정규화 */
 export function rotateShape(cells: ShapeCell[], times: number): ShapeCell[] {
   let cur = cells;
   for (let i = 0; i < ((times % 4) + 4) % 4; i++) {

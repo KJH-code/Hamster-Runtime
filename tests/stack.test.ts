@@ -5,15 +5,15 @@ import { LOCK_MS, LOCK_RESETS, Stack } from '../src/core/stack';
 
 /** 칸 하나짜리 벽돌로 판을 채운다 (테스트 지형용) */
 function fill(b: Board, cells: [number, number][]) {
-  for (const [x, y] of cells) b.placeCells('X', 0, [{ x: 0, y: 0, cell: { kind: 'empty', open: 0 } }], x, y);
+  for (const [x, y] of cells) b.placeCells('X', 0, [{ x: 0, y: 0, cell: { kind: 'empty', inner: 0, end: false } }], x, y);
 }
 
 describe('스폰', () => {
   it('가로 10 판: T 는 상자 x=3, 맨 윗줄에 닿게', () => {
-    const s = new Stack(new Board(10, 8), { 'T-switch': 1 }, M);
-    expect(s.spawn('T-switch')).toBe(true);
+    const s = new Stack(new Board(10, 8), { 'T-tube-a': 1 }, M);
+    expect(s.spawn('T-tube-a')).toBe(true);
     expect(s.active).toMatchObject({ r: 0, x: 3, y: 0 });
-    expect(s.supply.get('T-switch')).toBe(0);
+    expect(s.supply.get('T-tube-a')).toBe(0);
   });
   it('I 는 상자 y=-1 (가로줄이 0번 줄)', () => {
     const s = new Stack(new Board(10, 8), { 'I-tube': 1 }, M);
@@ -22,25 +22,25 @@ describe('스폰', () => {
   });
   it('공급이 없거나 자리가 막히면 스폰 실패', () => {
     const b = new Board(10, 8);
-    const s = new Stack(b, { 'T-switch': 1, 'O-gear': 0 }, M);
-    expect(s.spawn('O-gear')).toBe(false);
+    const s = new Stack(b, { 'T-tube-a': 1, 'O-empty': 0 }, M);
+    expect(s.spawn('O-empty')).toBe(false);
     fill(b, [[4, 0]]);
-    expect(s.spawn('T-switch')).toBe(false);
-    expect(s.supply.get('T-switch')).toBe(1);
+    expect(s.spawn('T-tube-a')).toBe(false);
+    expect(s.supply.get('T-tube-a')).toBe(1);
   });
 });
 
 describe('이동과 드롭', () => {
   it('벽 너머로는 못 간다', () => {
-    const s = new Stack(new Board(10, 8), { 'O-gear': 1 }, M);
-    s.spawn('O-gear'); // x=4
+    const s = new Stack(new Board(10, 8), { 'O-empty': 1 }, M);
+    s.spawn('O-empty'); // x=4
     for (let i = 0; i < 4; i++) expect(s.move(-1)).toBe(true);
     expect(s.move(-1)).toBe(false);
     expect(s.active!.x).toBe(0);
   });
   it('소프트 드롭은 한 칸씩, 바닥에서 멈춤', () => {
-    const s = new Stack(new Board(10, 8), { 'O-gear': 1 }, M);
-    s.spawn('O-gear');
+    const s = new Stack(new Board(10, 8), { 'O-empty': 1 }, M);
+    s.spawn('O-empty');
     let n = 0;
     while (s.softDrop()) n++;
     expect(n).toBe(6); // 높이 8, O 높이 2
@@ -48,20 +48,20 @@ describe('이동과 드롭', () => {
   });
   it('하드 드롭은 즉시 고정', () => {
     const b = new Board(10, 8);
-    const s = new Stack(b, { 'O-gear': 1 }, M);
-    s.spawn('O-gear');
+    const s = new Stack(b, { 'O-empty': 1 }, M);
+    s.spawn('O-empty');
     expect(s.hardDrop()).toBe(true);
     expect(s.active).toBeNull();
-    expect(b.at(4, 7)?.kind).toBe('gear');
-    expect(b.at(5, 6)?.kind).toBe('gear');
+    expect(b.at(4, 7)?.kind).toBe('empty');
+    expect(b.at(5, 6)?.kind).toBe('empty');
   });
   it('처마: 아래에 빈 공간이 있어도 걸리면 멈추고 공간은 남는다', () => {
     const b = new Board(10, 8);
     fill(b, [[4, 5]]);
-    const s = new Stack(b, { 'O-gear': 1 }, M);
-    s.spawn('O-gear'); // x=4..5
+    const s = new Stack(b, { 'O-empty': 1 }, M);
+    s.spawn('O-empty'); // x=4..5
     s.hardDrop();
-    expect(b.at(4, 4)?.kind).toBe('gear');
+    expect(b.at(4, 4)?.kind).toBe('empty');
     expect(b.at(5, 5)).toBeNull(); // 처마 밑 빈칸
     expect(b.at(5, 7)).toBeNull();
   });
@@ -69,8 +69,8 @@ describe('이동과 드롭', () => {
 
 describe('락 딜레이', () => {
   const grounded = () => {
-    const s = new Stack(new Board(10, 8), { 'O-gear': 1 }, M);
-    s.spawn('O-gear', 0);
+    const s = new Stack(new Board(10, 8), { 'O-empty': 1 }, M);
+    s.spawn('O-empty', 0);
     while (s.softDrop(0));
     return s;
   };
@@ -94,8 +94,8 @@ describe('락 딜레이', () => {
     expect(s.tick(t + 100)).toBe(true);
   });
   it('공중이면 타이머 없음, 공중에서 lock() 거부', () => {
-    const s = new Stack(new Board(10, 8), { 'O-gear': 1 }, M);
-    s.spawn('O-gear', 0);
+    const s = new Stack(new Board(10, 8), { 'O-empty': 1 }, M);
+    s.spawn('O-empty', 0);
     expect(s.groundedAt).toBeNull();
     expect(s.tick(10_000)).toBe(false);
     expect(s.lock()).toBe(false);
@@ -103,8 +103,8 @@ describe('락 딜레이', () => {
   it('처마 끝에서 옆으로 밀어 떨어질 수 있게 되면 타이머 해제', () => {
     const b = new Board(10, 8);
     fill(b, [[4, 7], [5, 7]]);
-    const s = new Stack(b, { 'O-gear': 1 }, M);
-    s.spawn('O-gear', 0);
+    const s = new Stack(b, { 'O-empty': 1 }, M);
+    s.spawn('O-empty', 0);
     while (s.softDrop(0));
     expect(s.groundedAt).toBe(0);
     expect(s.move(2, 100)).toBe(true); // x=6..7: 아래(7번 줄)가 비어 있음 → 공중
@@ -116,8 +116,8 @@ describe('락 딜레이', () => {
 
 describe('SRS 회전', () => {
   it('왼쪽 벽에 붙은 T 를 R→0 으로 돌리면 오른쪽으로 1칸 킥', () => {
-    const s = new Stack(new Board(10, 8), { 'T-switch': 1 }, M);
-    s.spawn('T-switch');
+    const s = new Stack(new Board(10, 8), { 'T-tube-a': 1 }, M);
+    s.spawn('T-tube-a');
     s.rotate(1); // R
     while (s.move(-1));
     expect(s.active).toMatchObject({ r: 1, x: -1 }); // 상자는 벽 밖, 칸은 0~1열
@@ -133,40 +133,40 @@ describe('SRS 회전', () => {
       if (x !== 4) cells.push([x, 5]);
     }
     fill(b, cells);
-    const s = new Stack(b, { 'T-switch': 1 }, M);
-    const poses = s.reachableLocks('T-switch');
+    const s = new Stack(b, { 'T-tube-a': 1 }, M);
+    const poses = s.reachableLocks('T-tube-a');
     expect(poses).toContainEqual({ r: 2, x: 3, y: 3 }); // (3,4)(4,4)(5,4)(4,5)
     // 같은 슬롯에 T 를 아래 방향(2)으로 그냥 떨어뜨리면 처마에 걸린다
-    expect(s.fits('T-switch', { r: 2, x: 3, y: 2 })).toBe(false);
+    expect(s.fits('T-tube-a', { r: 2, x: 3, y: 2 })).toBe(false);
   });
 });
 
 describe('무르기와 공급', () => {
   it('마지막에 놓은 것부터 되돌리고 공급으로', () => {
     const b = new Board(10, 8);
-    const s = new Stack(b, { 'O-gear': 2 }, M);
-    s.spawn('O-gear');
+    const s = new Stack(b, { 'O-empty': 2 }, M);
+    s.spawn('O-empty');
     s.hardDrop();
-    s.spawn('O-gear');
+    s.spawn('O-empty');
     s.hardDrop();
     expect(b.placed.length).toBe(2);
-    expect(s.supply.get('O-gear')).toBe(0);
+    expect(s.supply.get('O-empty')).toBe(0);
     expect(s.undo()).toBe(true);
     expect(b.placed.length).toBe(1);
     expect(b.at(4, 5)).toBeNull(); // 위에 쌓인 것이 사라짐
-    expect(b.at(4, 7)?.kind).toBe('gear');
-    expect(s.supply.get('O-gear')).toBe(1);
+    expect(b.at(4, 7)?.kind).toBe('empty');
+    expect(s.supply.get('O-empty')).toBe(1);
   });
   it('떨어지는 중이면 그 미노부터 취소', () => {
-    const s = new Stack(new Board(10, 8), { 'O-gear': 1 }, M);
-    s.spawn('O-gear');
+    const s = new Stack(new Board(10, 8), { 'O-empty': 1 }, M);
+    s.spawn('O-empty');
     expect(s.undo()).toBe(true);
     expect(s.active).toBeNull();
-    expect(s.supply.get('O-gear')).toBe(1);
+    expect(s.supply.get('O-empty')).toBe(1);
   });
   it('레벨 고정 미노(history 밖)는 무를 수 없다', () => {
     const b = new Board(10, 8);
-    b.place('O-gear', 0, 0, 6, M);
+    b.place('O-empty', 0, 0, 6, M);
     const s = new Stack(b, {}, M);
     expect(s.undo()).toBe(false);
     expect(b.placed.length).toBe(1);
