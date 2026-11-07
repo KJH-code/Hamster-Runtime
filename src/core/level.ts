@@ -12,6 +12,7 @@ import { Simulation, type Inject, type Status } from './hamster';
 import { srsPiece } from './srs';
 import { findDef } from './board';
 import type { SwitchState } from './types';
+import { MINOS, type MinoDef } from '../data/minos';
 
 export type FailKind = 'dead' | 'crashed' | 'out' | 'loop' | 'any';
 export type Expect = { bin: number } | { fail: FailKind };
@@ -51,10 +52,10 @@ export interface Level {
 }
 
 /** 레벨의 빈 판(고정 미노만 놓인 상태)을 만든다 */
-export function buildLevelBoard(level: Level): Board {
+export function buildLevelBoard(level: Level, defs: MinoDef[] = MINOS): Board {
   const b = new Board(level.width, level.height);
   for (const f of level.fixed) {
-    const cells = srsPiece(findDef(f.defId)).states[f.r]!;
+    const cells = srsPiece(findDef(f.defId, defs)).states[f.r]!;
     if (!b.placeCells(f.defId, f.r, cells, f.x, f.y)) throw new Error(`레벨 ${level.id}: 고정 미노 ${f.defId} 를 놓을 수 없다`);
   }
   return b;

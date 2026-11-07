@@ -1,3 +1,4 @@
+import { RULE_MINOS as M } from './fixtures/minos';
 import { describe, expect, it } from 'vitest';
 import { Board } from '../src/core/board';
 import { Simulation } from '../src/core/hamster';
@@ -30,7 +31,7 @@ describe('낙하와 통', () => {
   });
   it('위로 열린 튜브 입구에 떨어지면 받아서 끝까지 간다', () => {
     const b = new Board();
-    b.place('I-tube', 0, 4, 6);
+    b.place('I-tube', 0, 4, 6, M);
     const s = makeSim(b, 'left', 4);
     expect(s.run()).toBe('binned');
     expect(s.bin).toBe(2);
@@ -46,7 +47,7 @@ describe('낙하와 통', () => {
   });
   it('비튜브 부품 칸에 닿으면 튕김 → 실패', () => {
     const b = new Board();
-    b.place('O-gear', 0, 4, 6);
+    b.place('O-gear', 0, 4, 6, M);
     const s = makeSim(b, 'left', 4);
     expect(s.run()).toBe('crashed');
     expect(s.bounce).toEqual({ x: 4, y: 6 });
@@ -54,7 +55,7 @@ describe('낙하와 통', () => {
   });
   it('위가 닫힌 튜브 칸(가로 튜브)에 닿으면 튕김 → 실패', () => {
     const b = new Board();
-    b.place('I-tube', 1, 3, 6);
+    b.place('I-tube', 1, 3, 6, M);
     const s = makeSim(b, 'left', 4);
     expect(s.run()).toBe('crashed');
     expect(s.bounce).toEqual({ x: 4, y: 6 });
@@ -64,14 +65,14 @@ describe('낙하와 통', () => {
 describe('튜브 이동', () => {
   it('L 튜브: 아래로 내려가 꺾여 오른쪽으로 나가 낙하', () => {
     const b = new Board();
-    b.place('L-tube', 0, 0, 0); // (0,0)(0,1)(0,2) 세로, (1,2) 가로
+    b.place('L-tube', 0, 0, 0, M); // (0,0)(0,1)(0,2) 세로, (1,2) 가로
     const s = makeSim(b, 'left');
     expect(s.run()).toBe('binned');
     expect(s.bin).toBe(1); // (1,2) 에서 E 로 나가 (2,2) 낙하 → 열 2 → 통 1
   });
   it('판 옆으로 나가면 실패', () => {
     const b = new Board();
-    b.place('L-tube', 0, 8, 0); // 끝 (9,2) 가 오른쪽으로 열림
+    b.place('L-tube', 0, 8, 0, M); // 끝 (9,2) 가 오른쪽으로 열림
     const s = makeSim(b, 'left', 8);
     expect(s.run()).toBe('out');
   });
@@ -82,8 +83,8 @@ describe('막다른 길', () => {
   // 1=(2,2) 2=(3,2) 3=(4,2) 4=(3,3)
   const build = () => {
     const b = new Board();
-    b.place('L-tube', 0, 0, 0); // 경로 끝 (1,2) → 오른쪽 (2,2)
-    b.place('T-switch', 0, 2, 2);
+    b.place('L-tube', 0, 0, 0, M); // 경로 끝 (1,2) → 오른쪽 (2,2)
+    b.place('T-switch', 0, 2, 2, M);
     return b;
   };
   it('상태 A: 1→2→4 로 빠져 낙하해 통 1', () => {
@@ -102,7 +103,7 @@ describe('T를 180° 돌린 분기기', () => {
   // 4=(4,4) 위 입구, 스위치 (4,5), 갈래 (3,5) 와 (5,5)
   const build = () => {
     const b = new Board();
-    b.place('T-switch', 2, 3, 4);
+    b.place('T-switch', 2, 3, 4, M);
     return b;
   };
   it('상태 A: 오른쪽 갈래 → (6,5) 낙하 → 통 3', () => {
@@ -120,8 +121,8 @@ describe('T를 180° 돌린 분기기', () => {
 describe('루프 감지', () => {
   it('U 자 튜브: 위로 올라가 나갔다 다시 같은 입구로 떨어지면 loop', () => {
     const b = new Board();
-    b.place('L-tube', 0, 0, 1);
-    b.place('J-tube', 0, 2, 1);
+    b.place('L-tube', 0, 0, 1, M);
+    b.place('J-tube', 0, 2, 1, M);
     const s = makeSim(b, 'left');
     expect(s.run()).toBe('loop');
     expect(s.bin).toBeNull();
@@ -148,7 +149,7 @@ describe('센서 → 모터 → 기어 → 스위치', () => {
       ['I-sensor', 0, 7, 4], ['I-sensor', 0, 1, 4],
       ['S-motor', 3, 5, 4], ['Z-motor', 3, 2, 4], ['S-motor', 0, 4, 2], ['S-motor', 0, 2, 2],
     ];
-    for (const [id, r, x, y] of steps) expect(b.place(id, r, x, y), id).not.toBeNull();
+    for (const [id, r, x, y] of steps) expect(b.place(id, r, x, y, M), id).not.toBeNull();
     return b;
   };
   it('토글: 시작 A 로 한 번 지나면 B, 시작 B 로 지나면 A (잠김 없음)', () => {
@@ -179,7 +180,7 @@ describe('센서 → 모터 → 기어 → 스위치', () => {
   });
   it('모터가 하나도 인접하지 않은 센서는 아무 일도 일으키지 않는다', () => {
     const b = new Board();
-    b.place('I-sensor', 0, 4, 2);
+    b.place('I-sensor', 0, 4, 2, M);
     const s = makeSim(b, 'left', 4);
     s.run();
     expect(s.lastDrive).toBeNull();
@@ -202,7 +203,7 @@ describe('센서 → 모터 → 기어 → 스위치', () => {
         ['I-sensor', 0, 4, 0], ['T-switch', 2, 3, 4],
         ['Z-motor', 1, 2, 0], ['S-motor', 0, 0, 3], ['S-motor', 1, 0, 5], ['S-motor', 0, 2, 6],
       ];
-      for (const [id, r, x, y] of steps) expect(b.place(id, r, x, y), id).not.toBeNull();
+      for (const [id, r, x, y] of steps) expect(b.place(id, r, x, y, M), id).not.toBeNull();
       return b;
     };
     // 스위치가 B 로 바뀐 뒤 서쪽 갈래로 빠져 (2,6) 의 기어에 닿아 실패한다 — 이 테스트의 관심사는 기어 쪽

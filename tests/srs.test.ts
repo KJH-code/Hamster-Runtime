@@ -1,12 +1,14 @@
+import { RULE_MINOS as M } from './fixtures/minos';
 import { describe, expect, it } from 'vitest';
 import { MINOS } from '../src/data/minos';
 import { kicks, srsPiece } from '../src/core/srs';
 import { N, S, E, W } from '../src/core/types';
 
 const key = (cs: { x: number; y: number }[]) => cs.map((c) => `${c.x},${c.y}`).sort().join(' ');
-const def = (id: string) => MINOS.find((m) => m.id === id)!;
+const def = (id: string) => M.find((m) => m.id === id)!;
 
 describe('SRS 모양', () => {
+  // 이 첫 테스트만 실제 데이터(MINOS)를 검사한다: piece 글자와 rows 모양이 맞는지
   it('모든 미노가 자기 글자의 SRS 스폰 모양으로 맞춰진다', () => {
     const spawn: Record<string, string> = {
       I: '0,1 1,1 2,1 3,1',

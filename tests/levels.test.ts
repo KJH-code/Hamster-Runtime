@@ -6,6 +6,9 @@ import { template } from '../src/data/levels/template';
 import { Board } from '../src/core/board';
 
 /*
+ * ※ 이 파일은 실제 데이터(src/data/minos.ts, src/data/levels)에 묶여 있다.
+ *   미노 성질을 바꾸면 레벨과 SOLUTIONS 도 다시 설계해야 하고, 여기서 깨지는 게 정상이다.
+ *
  * 레벨 풀이 검증. 아래 풀이는 "풀 수 있다"는 증명용이다 — 화면에는 나오지 않는다.
  * 각 수는 [미노 id, SRS 방향, 상자 x, 상자 y]. 스폰에서 실제 조작(좌우·소프트 드롭·SRS 회전)으로
  * 그 자세에 도달할 수 있고 바닥에 닿아 있어야(고정 가능) 한다.
