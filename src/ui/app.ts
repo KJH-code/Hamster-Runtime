@@ -8,6 +8,7 @@ import { PART_NAMES } from '../core/parts';
 import { binCount, type Dir, type PartType } from '../core/types';
 import { MINOS, PIECE_ORDER } from '../data/minos';
 import { canvasSize, COLORS, render } from './render';
+import type { Screen } from './runner';
 
 type Mode = 'mino' | 'part' | 'queue';
 const PARTS: { type: PartType; dir?: Dir; label: string }[] = [
@@ -29,7 +30,7 @@ const STATUS_TEXT: Record<Status, string> = {
 };
 const STEP_MS = 150;
 
-export function startApp(root: HTMLElement) {
+export function startSandbox(root: HTMLElement, onExit: () => void): Screen {
   const ed = new Editor();
   let mode: Mode = 'mino';
   let lastEditMode: 'mino' | 'part' = 'mino';
@@ -79,7 +80,7 @@ export function startApp(root: HTMLElement) {
   const keysBox = el('div', 'keys');
   const queueBox = el('div', 'queue');
   const tallyBox = el('div', 'tally');
-  panel.append(el('h1', '', 'Hamster Runtime · 샌드박스'), selBox, el('h2', '', '키'), keysBox, el('h2', '', '대기열 (Tab)'), queueBox, el('h2', '', '결과'), tallyBox);
+  panel.append(el('h1', '', 'Hamster Runtime · 샌드박스'), el('div', 'dim', 'Esc 레벨 목록'), selBox, el('h2', '', '키'), keysBox, el('h2', '', '대기열 (Tab)'), queueBox, el('h2', '', '결과'), tallyBox);
 
   // ---------- 상태 헬퍼 ----------
   const variantsOf = (p: string) => MINOS.filter((d) => d.piece === p);
@@ -108,10 +109,11 @@ export function startApp(root: HTMLElement) {
   }
 
   // ---------- 키 ----------
-  window.addEventListener('keydown', (e) => {
+  function key(e: KeyboardEvent) {
     const k = e.key;
     const lower = k.length === 1 ? k.toLowerCase() : k;
     const ctrl = e.ctrlKey || e.metaKey;
+    if (k === 'Escape') return handled(e, onExit);
     if (ctrl && lower === 'z' && !e.shiftKey) return handled(e, () => (ed.undo() ? (resetRun(), say('되돌림')) : say('되돌릴 것 없음')));
     if (ctrl && (lower === 'y' || (lower === 'z' && e.shiftKey))) return handled(e, () => (ed.redo() ? (resetRun(), say('다시 함')) : say('다시 할 것 없음')));
     if (ctrl) return;
@@ -128,7 +130,7 @@ export function startApp(root: HTMLElement) {
     if (mode === 'mino') return minoKey(e, k, lower);
     if (mode === 'part') return partKey(e, k, lower);
     return queueKey(e, k, lower);
-  });
+  }
 
   function handled(e: KeyboardEvent, f: () => void) {
     e.preventDefault();
@@ -326,7 +328,9 @@ export function startApp(root: HTMLElement) {
 
   // ---------- 루프 ----------
   let last = performance.now();
+  let alive = true;
   function frame(t: number) {
+    if (!alive) return;
     const dt = Math.min(0.1, (t - last) / 1000);
     last = t;
     if (running && run && !run.done && t >= nextStepAt) {
@@ -385,6 +389,7 @@ export function startApp(root: HTMLElement) {
 
   // 테스트 훅 (Playwright 검증용)
   (window as unknown as { __hamster: unknown }).__hamster = {
+    screen: 'sandbox',
     ed,
     get run() {
       return run;
@@ -397,6 +402,12 @@ export function startApp(root: HTMLElement) {
     },
     get cursor() {
       return { ...cursor };
+    },
+  };
+  return {
+    key,
+    dispose() {
+      alive = false;
     },
   };
 }

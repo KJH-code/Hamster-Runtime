@@ -53,3 +53,24 @@ kbd { min-width: 110px; display: inline-block; background: #232838; border: 1px 
 .qi { width: 22px; color: #9aa3b8; text-align: right; }
 .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
 .tally { font-size: 13px; display: flex; flex-direction: column; gap: 2px; }
+
+/* 레벨 */
+.menu { justify-content: center; }
+.menubox { width: 560px; display: flex; flex-direction: column; gap: 10px; }
+.levels { display: flex; flex-direction: column; gap: 4px; }
+.lrow { display: flex; gap: 10px; align-items: center; padding: 8px 12px; border: 1px solid #2b3040; border-radius: 6px; background: #161a24; }
+.lrow.sel { outline: 2px solid #8fc1ff; background: #1f2636; }
+.lrow.locked { opacity: 0.5; }
+.ln { width: 24px; color: #9aa3b8; text-align: right; }
+.lname { flex: 1; }
+.lbest { color: #ffe14a; font-size: 12px; }
+.mech { color: #c9d1e6; font-size: 13px; margin-top: 4px; padding: 6px 8px; border-left: 3px solid #4a86c0; background: #161a24; }
+.pricebig { font-size: 20px; font-weight: 700; }
+.pricebig.over { color: #e5484d; }
+.ok { color: #53c26b; }
+.bad { color: #e5484d; }
+.editor { display: flex; flex-direction: column; gap: 2px; max-height: 420px; overflow: auto; }
+.frow { display: flex; gap: 8px; font-size: 13px; padding: 1px 6px; border-radius: 4px; }
+.frow.sel { outline: 2px solid #8fc1ff; }
+.frow .fk { width: 120px; color: #9aa3b8; }
+textarea.json { width: 100%; height: 160px; background: #12151d; color: #c9d1e6; border: 1px solid #2b3040; border-radius: 6px; font: 11px ui-monospace, monospace; }
