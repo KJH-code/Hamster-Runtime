@@ -427,6 +427,10 @@ export function startSandbox(
         const n = sim?.nodeOfCell.get(ed.board.idx(x, y));
         return n === undefined ? 0 : (gearAngle.get(n) ?? 0);
       },
+      switchTurn: (x, y) => {
+        const n = sim?.nodeOfCell.get(ed.board.idx(x, y));
+        return n === undefined ? 0 : ((gearAngle.get(n) ?? 0) - (gearTarget.get(n) ?? 0)) * 2;
+      },
       pressed,
       floating: mode === 'mino' && !run ? { cells: floatingCells(), x: pos.x, y: pos.y, ok: ed.board.canPlace(floatingCells(), pos.x, pos.y) } : null,
       cursor: mode === 'part' && !run ? cursor : null,

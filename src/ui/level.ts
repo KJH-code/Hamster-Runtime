@@ -270,6 +270,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       switchState: (x, y) => sim?.switchStateAt(x, y) ?? play.board.partAt(x, y)?.start,
       locked: (x, y) => sim?.isCellLocked(x, y) ?? false,
       gearAngle: (x, y) => runner?.gearAngleAt(play.board, x, y) ?? 0,
+      switchTurn: (x, y) => runner?.switchTurnAt(play.board, x, y) ?? 0,
       pressed: runner?.pressed(t) ?? new Set(),
       floating: a && !runner ? { cells: play.stack.cellsOf(a), x: a.x, y: a.y, ok: true } : null,
       ghost: g && !runner ? { cells: play.stack.cellsOf(g), x: g.x, y: g.y, ok: true } : null,
