@@ -171,3 +171,22 @@ describe('무르기와 공급', () => {
     expect(b.placed.length).toBe(1);
   });
 });
+
+describe('판 위 보이지 않는 줄', () => {
+  it('맨 위에서 I 를 돌려도 밀려나지 않는다 (상자 x 그대로, 칸이 판 위로 삐져나감)', () => {
+    const s = new Stack(new Board(8, 8), { 'I-tube': 1 });
+    s.spawn('I-tube'); // x=2, y=-1
+    expect(s.rotate(1)).toBe(true);
+    expect(s.active).toMatchObject({ r: 1, x: 2, y: -1 });
+  });
+  it('판 위로 삐져나온 채로는 고정되지 않는다', () => {
+    const b = new Board(4, 3);
+    const s = new Stack(b, { 'I-tube': 1 });
+    s.spawn('I-tube'); // 가로, 0번 줄
+    s.rotate(1); // 세로 4칸: 높이 3 판에서는 한 칸이 위로 삐져나옴
+    while (s.softDrop());
+    expect(s.isGrounded()).toBe(true);
+    expect(s.lock()).toBe(false);
+    expect(s.tick(5000)).toBe(false);
+  });
+});

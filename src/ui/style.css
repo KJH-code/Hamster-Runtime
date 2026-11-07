@@ -34,3 +34,24 @@ input[type=range] { flex: 1; }
   .pal { flex: 0 0 72px; scroll-snap-align: start; }
   .runrow button { padding: 8px 6px; font-size: 13px; }
 }
+
+/* 모드 탭 */
+nav.modes { display: flex; gap: 6px; padding: 12px 16px 0; justify-content: center; }
+nav.modes button { min-width: 110px; }
+[hidden] { display: none !important; }
+
+/* 레벨 화면 */
+.levelpick button { font-size: 13px; }
+.desc { margin: 0; color: #c8cfdf; font-size: 13px; line-height: 1.5; }
+.pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.pad button { min-height: 44px; font-size: 16px; }
+.pal:disabled { opacity: 0.4; cursor: default; }
+.results { display: flex; flex-direction: column; gap: 8px; }
+.case { border: 1px solid #2b3040; border-radius: 6px; padding: 6px 8px; background: #151922; }
+.case.ok { border-color: #55a35b; }
+.case.bad { border-color: #a34a4d; }
+.casehead { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.casehead button { margin-left: auto; min-height: 30px; padding: 3px 10px; }
+.hline { font-size: 12px; color: #b8c0d4; }
+.hline.ok { color: #8fd694; }
+.hline.bad { color: #f0989b; }

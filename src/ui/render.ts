@@ -189,6 +189,10 @@ export interface RenderState {
   sim: Simulation | null;
   startSwitches: Map<number, SwitchState>;
   ghost: Ghost | null;
+  /** 중력 모드: 떨어지는 중인 미노 (불투명하게) */
+  active?: Ghost | null;
+  /** 중력 모드: 착지 위치 (외곽선만) */
+  landing?: Ghost | null;
   gearAngle: Map<number, number>; // 노드 → 각도(라디안)
   pressed: Set<string>;
   hamster: { x: number; y: number; shake: number } | null; // 격자 좌표(소수 가능)
@@ -289,6 +293,34 @@ export function render(ctx: CanvasRenderingContext2D, st: RenderState) {
         ctx.fillRect(gx * CELL, oy + gy * CELL, CELL, CELL);
       }
       drawCell(ctx, c.cell, gx * CELL, oy + gy * CELL, CELL, { ghost: true, switchState: 'A' });
+    }
+  }
+
+  // 착지 위치 (외곽선)
+  if (st.landing) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    for (const c of st.landing.cells) {
+      const gx = st.landing.x + c.x;
+      const gy = st.landing.y + c.y;
+      if (gy < 0) continue;
+      ctx.strokeRect(gx * CELL + 3, oy + gy * CELL + 3, CELL - 6, CELL - 6);
+    }
+    ctx.setLineDash([]);
+  }
+  // 떨어지는 중인 미노
+  if (st.active) {
+    for (const c of st.active.cells) {
+      const gx = st.active.x + c.x;
+      const gy = st.active.y + c.y;
+      if (gy < 0) continue;
+      ctx.fillStyle = 'rgba(80,140,220,0.25)';
+      ctx.fillRect(gx * CELL, oy + gy * CELL, CELL, CELL);
+      drawCell(ctx, c.cell, gx * CELL, oy + gy * CELL, CELL, { switchState: 'A' });
+      ctx.strokeStyle = '#8fc1ff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(gx * CELL + 1, oy + gy * CELL + 1, CELL - 2, CELL - 2);
     }
   }
 

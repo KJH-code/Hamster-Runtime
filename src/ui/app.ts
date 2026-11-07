@@ -16,7 +16,7 @@ const STATUS_TEXT: Record<string, string> = {
   loop: '무한 루프 감지 — 같은 상태가 반복됨. 리셋하거나 다시 투입하세요',
 };
 
-export function startApp(root: HTMLElement) {
+export function startApp(root: HTMLElement, isActive: () => boolean = () => true) {
   const board = new Board(BOARD_W, BOARD_H);
   let selected = MINOS[0]!.id;
   let rot = 0;
@@ -354,6 +354,7 @@ export function startApp(root: HTMLElement) {
     if (p && board.removeAt(p.x, p.y)) onBoardEdited();
   });
   window.addEventListener('keydown', (e) => {
+    if (!isActive()) return;
     if (e.key === 'r' || e.key === 'R') rotate();
     else if (e.key === ' ') {
       e.preventDefault();
@@ -403,6 +404,10 @@ export function startApp(root: HTMLElement) {
   function frame(now: number) {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
+    if (!isActive()) {
+      requestAnimationFrame(frame);
+      return;
+    }
     if (running && sim && sim.status === 'running' && now >= nextStepAt) {
       doStep(now);
       nextStepAt = now + speed;

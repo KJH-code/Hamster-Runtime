@@ -42,8 +42,18 @@ export class Stack {
     return srsPiece(findDef(a.defId, this.defs)).states[a.r]!;
   }
 
+  /**
+   * 떨어지는 중인 미노가 그 자세에 있을 수 있는가. 판 위쪽(y<0, 보이지 않는 줄)은 허용 —
+   * 테트리스처럼 맨 위에서 회전해도 밀려나지 않게. 고정은 판 안에서만 된다(lock 참고).
+   */
   fits(defId: string, p: Pose): boolean {
-    return this.board.canPlace(this.cellsOf({ defId, r: p.r }), p.x, p.y);
+    const b = this.board;
+    return this.cellsOf({ defId, r: p.r }).every((c) => {
+      const x = p.x + c.x;
+      const y = p.y + c.y;
+      if (x < 0 || x >= b.w || y >= b.h) return false;
+      return y < 0 || b.owner[b.idx(x, y)] === 0;
+    });
   }
 
   isGrounded(a: Active = this.active!): boolean {
@@ -145,10 +155,15 @@ export class Stack {
     return false;
   }
 
-  /** 현재 미노를 판에 고정. 공중이면 고정하지 않는다 */
+  /** 모든 칸이 판 안(y>=0)인가 */
+  inside(defId: string, p: Pose): boolean {
+    return this.cellsOf({ defId, r: p.r }).every((c) => p.y + c.y >= 0);
+  }
+
+  /** 현재 미노를 판에 고정. 공중이거나 판 위로 삐져나와 있으면 고정하지 않는다 */
   lock(): boolean {
     const a = this.active;
-    if (!a || !this.isGrounded()) return false;
+    if (!a || !this.isGrounded() || !this.inside(a.defId, a)) return false;
     const p = this.board.placeCells(a.defId, a.r, this.cellsOf(a), a.x, a.y);
     if (!p) return false;
     this.history.push(p.uid);
@@ -193,7 +208,7 @@ export class Stack {
     const out: Pose[] = [];
     while (q.length) {
       const p = q.shift()!;
-      if (!this.fits(defId, { ...p, y: p.y + 1 })) out.push(p);
+      if (!this.fits(defId, { ...p, y: p.y + 1 }) && this.inside(defId, p)) out.push(p);
       const next: Pose[] = [
         { ...p, x: p.x - 1 },
         { ...p, x: p.x + 1 },
