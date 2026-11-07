@@ -10,6 +10,9 @@ npm test           # 단위 테스트 (기어·햄스터 시뮬레이션)
 npm run build      # 타입 검사 + 빌드
 ```
 
+## 배포 (GitHub Pages)
+`main` 에 push 하면 `.github/workflows/deploy.yml` 이 테스트 → 빌드 → Pages 배포를 한다. 레포 Settings → Pages → Source 를 **GitHub Actions** 로 한 번 설정해야 한다. `vite.config.ts` 의 `base: './'` 라 `https://<user>.github.io/<repo>/` 하위 경로에서도 동작한다.
+
 ## 조작
 - 좌클릭 배치 / 우클릭 삭제 / **R** 회전(시계 90°, 거울 없음) / **Space** 실행·일시정지
 - 도구: 배치, 삭제, 스위치 A/B(스위치 칸을 클릭해 시작 상태 변경). 초기화 = 판 비우기
