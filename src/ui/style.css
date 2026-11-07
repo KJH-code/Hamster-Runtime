@@ -35,23 +35,21 @@ input[type=range] { flex: 1; }
   .runrow button { padding: 8px 6px; font-size: 13px; }
 }
 
-/* 모드 탭 */
-nav.modes { display: flex; gap: 6px; padding: 12px 16px 0; justify-content: center; }
-nav.modes button { min-width: 110px; }
+/* 키보드 전용 샌드박스 */
 [hidden] { display: none !important; }
-
-/* 레벨 화면 */
-.levelpick button { font-size: 13px; }
-.desc { margin: 0; color: #c8cfdf; font-size: 13px; line-height: 1.5; }
-.pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-.pad button { min-height: 44px; font-size: 16px; }
-.pal:disabled { opacity: 0.4; cursor: default; }
-.results { display: flex; flex-direction: column; gap: 8px; }
-.case { border: 1px solid #2b3040; border-radius: 6px; padding: 6px 8px; background: #151922; }
-.case.ok { border-color: #55a35b; }
-.case.bad { border-color: #a34a4d; }
-.casehead { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.casehead button { margin-left: auto; min-height: 30px; padding: 3px 10px; }
-.hline { font-size: 12px; color: #b8c0d4; }
-.hline.ok { color: #8fd694; }
-.hline.bad { color: #f0989b; }
+.notice { background: #4a2b18; border: 1px solid #a85a22; padding: 8px 10px; border-radius: 6px; }
+.modebar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.mode { padding: 4px 10px; border-radius: 999px; border: 1px solid #353c52; color: #9aa3b8; font-size: 13px; }
+.mode.on { background: #3b6e3f; border-color: #55a35b; color: #fff; font-weight: 600; }
+.sel { padding: 8px 10px; background: #1a1e29; border: 1px solid #2b3040; border-radius: 6px; display: flex; flex-direction: column; gap: 4px; }
+.keys { display: flex; flex-direction: column; gap: 3px; }
+.krow { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+kbd { min-width: 110px; display: inline-block; background: #232838; border: 1px solid #353c52; border-bottom-width: 2px; border-radius: 4px; padding: 1px 6px; font: 12px ui-monospace, monospace; color: #e8e8ee; }
+.queue { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow: auto; }
+.qrow { display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 2px 6px; border-radius: 4px; }
+.qrow.sel { outline: 2px solid #8fc1ff; }
+.qrow.cur { background: #2f3a52; }
+.qrow.done { opacity: 0.7; }
+.qi { width: 22px; color: #9aa3b8; text-align: right; }
+.dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.tally { font-size: 13px; display: flex; flex-direction: column; gap: 2px; }

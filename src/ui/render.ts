@@ -1,60 +1,48 @@
 import type { Board } from '../core/board';
-import type { Simulation } from '../core/hamster';
-import { binCount, BIN_WIDTH, Cell, E, N, S, ShapeCell, SIDE_LIST, SwitchState } from '../core/types';
+import type { Links } from '../core/links';
+import { activeArm, switchArms } from '../core/parts';
+import { binCount, BIN_WIDTH, E, N, popcount, S, SIDE_LIST, type Cell, type Part, type ShapeCell, type Sides, type SwitchState } from '../core/types';
 
 export const CELL = 40;
-export const TOP_ROWS = 1; // 투입구 줄
-export const BIN_ROWS = 1;
+export const TOP_ROWS = 1;
+export const BIN_ROWS = 2;
+const OY = TOP_ROWS * CELL;
 
+export const COLORS = ['#ef5b5b', '#4f9cf0']; // 햄스터 색 0, 1
 const C = {
   bg: '#14161c',
   grid: '#232733',
   tubeEdge: '#7c5a2b',
   tube: '#e8c98f',
   tubeDim: '#5a4a33',
+  exit: '#fff3c4',
   gear: '#7fa6d8',
   gearEdge: '#2d4a73',
+  motor: '#f0a04b',
   switchGear: '#b48cf2',
   switchEdge: '#4b2d7a',
-  motor: '#f0a04b',
   locked: '#e5484d',
   sensor: '#53c26b',
   sensorOn: '#ffe14a',
+  warn: '#ff8a3d',
   text: '#f0f0f0',
 };
 
-function sideVec(s: number): [number, number] {
+function vec(s: Sides): [number, number] {
   return s === N ? [0, -1] : s === S ? [0, 1] : s === E ? [1, 0] : [-1, 0];
 }
 
-function drawTubeArm(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number, side: number, fill: string, edge: string) {
-  const [vx, vy] = sideVec(side);
-  const ex = cx + vx * size * 0.5;
-  const ey = cy + vy * size * 0.5;
+function arm(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number, s: Sides, fill: string, edge: string, len = 0.5) {
+  const [vx, vy] = vec(s);
   ctx.lineCap = 'butt';
-  ctx.strokeStyle = edge;
-  ctx.lineWidth = size * 0.52;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(ex, ey);
-  ctx.stroke();
-  ctx.strokeStyle = fill;
-  ctx.lineWidth = size * 0.36;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(ex, ey);
-  ctx.stroke();
-}
-
-function drawTubeJoint(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number, fill: string, edge: string) {
-  ctx.fillStyle = edge;
-  ctx.beginPath();
-  ctx.arc(cx, cy, size * 0.26, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = fill;
-  ctx.beginPath();
-  ctx.arc(cx, cy, size * 0.18, 0, Math.PI * 2);
-  ctx.fill();
+  for (const [w, col] of [[0.5, edge], [0.34, fill]] as const) {
+    ctx.strokeStyle = col;
+    ctx.lineWidth = size * w;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + vx * size * len, cy + vy * size * len);
+    ctx.stroke();
+  }
 }
 
 export function drawGear(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, angle: number, fill: string, edge: string) {
@@ -65,7 +53,7 @@ export function drawGear(ctx: CanvasRenderingContext2D, cx: number, cy: number, 
   ctx.beginPath();
   for (let i = 0; i < teeth; i++) {
     const a0 = (i / teeth) * Math.PI * 2;
-    const a1 = a0 + (Math.PI * 2) / teeth / 2;
+    const a1 = a0 + Math.PI / teeth;
     ctx.lineTo(Math.cos(a0) * r * 0.78, Math.sin(a0) * r * 0.78);
     ctx.lineTo(Math.cos(a0 + 0.12) * r, Math.sin(a0 + 0.12) * r);
     ctx.lineTo(Math.cos(a1 - 0.12) * r, Math.sin(a1 - 0.12) * r);
@@ -77,7 +65,6 @@ export function drawGear(ctx: CanvasRenderingContext2D, cx: number, cy: number, 
   ctx.lineWidth = 2;
   ctx.fill();
   ctx.stroke();
-  // 회전이 보이도록 한 칸에 표식
   ctx.fillStyle = edge;
   ctx.beginPath();
   ctx.arc(r * 0.45, 0, r * 0.1, 0, Math.PI * 2);
@@ -85,144 +72,179 @@ export function drawGear(ctx: CanvasRenderingContext2D, cx: number, cy: number, 
   ctx.restore();
 }
 
-export interface CellDrawOpts {
-  angle?: number;
-  locked?: boolean;
-  switchState?: SwitchState;
-  pressed?: boolean;
-  ghost?: boolean;
-}
-
-export function drawCell(ctx: CanvasRenderingContext2D, cell: Cell, px: number, py: number, size: number, o: CellDrawOpts = {}) {
+/** 미노 칸 하나 (튜브 연결은 links 를 따른다. links 가 없으면 미노 안 경로만) */
+export function drawTubeCell(
+  ctx: CanvasRenderingContext2D,
+  cell: Cell,
+  px: number,
+  py: number,
+  size: number,
+  link: Sides,
+  exit: Sides,
+) {
+  if (cell.kind !== 'tube') return;
   const cx = px + size / 2;
   const cy = py + size / 2;
-  ctx.save();
-  if (o.ghost) ctx.globalAlpha = 0.55;
-  const tubeFill = C.tube;
-  switch (cell.kind) {
-    case 'empty': {
-      ctx.strokeStyle = '#3a3f52';
-      ctx.setLineDash([4, 4]);
-      ctx.strokeRect(px + 3, py + 3, size - 6, size - 6);
-      ctx.setLineDash([]);
-      break;
-    }
-    case 'tube':
+  for (const s of SIDE_LIST) if (link & s) arm(ctx, cx, cy, size, s, C.tube, C.tubeEdge);
+  if (exit) {
+    arm(ctx, cx, cy, size, exit, C.exit, C.tubeEdge);
+    // 열린 출구 표시: 바깥을 향한 작은 화살촉
+    const [vx, vy] = vec(exit);
+    const tx = cx + vx * size * 0.42;
+    const ty = cy + vy * size * 0.42;
+    ctx.fillStyle = '#7c5a2b';
+    ctx.beginPath();
+    ctx.moveTo(tx + vx * size * 0.08, ty + vy * size * 0.08);
+    ctx.lineTo(tx - vy * size * 0.1, ty + vx * size * 0.1);
+    ctx.lineTo(tx + vy * size * 0.1, ty - vx * size * 0.1);
+    ctx.fill();
+  }
+  ctx.fillStyle = C.tubeEdge;
+  ctx.beginPath();
+  ctx.arc(cx, cy, size * 0.25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = C.tube;
+  ctx.beginPath();
+  ctx.arc(cx, cy, size * 0.17, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+export interface PartDrawOpts {
+  angle?: number;
+  locked?: boolean;
+  state?: SwitchState;
+  pressed?: boolean;
+  link?: Sides;
+  /** 부품이 놓인 칸이 튜브 끝일 때 막힌 변 (마개 그림 위치) */
+  plugSide?: Sides;
+}
+
+export function drawPart(ctx: CanvasRenderingContext2D, part: Part, px: number, py: number, size: number, o: PartDrawOpts = {}) {
+  const cx = px + size / 2;
+  const cy = py + size / 2;
+  const red = o.locked;
+  switch (part.type) {
     case 'sensor': {
-      for (const s of SIDE_LIST) if (cell.open & s) drawTubeArm(ctx, cx, cy, size, s, tubeFill, C.tubeEdge);
-      drawTubeJoint(ctx, cx, cy, size, tubeFill, C.tubeEdge);
-      if (cell.kind === 'sensor') {
-        ctx.fillStyle = o.pressed ? C.sensorOn : C.sensor;
-        ctx.strokeStyle = '#1d5a2c';
-        ctx.lineWidth = 2;
+      ctx.fillStyle = o.pressed ? C.sensorOn : C.sensor;
+      ctx.strokeStyle = '#1d5a2c';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(cx - size * 0.24, cy - size * 0.24, size * 0.48, size * 0.48, 4);
+      ctx.fill();
+      ctx.stroke();
+      ctx.lineWidth = 1.5;
+      for (const k of [-0.09, 0, 0.09]) {
         ctx.beginPath();
-        ctx.roundRect(cx - size * 0.27, cy - size * 0.27, size * 0.54, size * 0.54, 4);
-        ctx.fill();
-        ctx.stroke();
-        ctx.strokeStyle = '#1d5a2c';
-        ctx.lineWidth = 1.5;
-        for (const k of [-0.1, 0, 0.1]) {
-          ctx.beginPath();
-          ctx.moveTo(cx - size * 0.17, cy + k * size);
-          ctx.lineTo(cx + size * 0.17, cy + k * size);
-          ctx.stroke();
-        }
-      }
-      break;
-    }
-    case 'switch': {
-      const active = o.switchState === 'B' ? cell.armB! : cell.armA!;
-      const inactive = o.switchState === 'B' ? cell.armA! : cell.armB!;
-      drawTubeArm(ctx, cx, cy, size, inactive, C.tubeDim, '#2a2118'); // 닫힌 갈래
-      {
-        const [vx, vy] = sideVec(inactive);
-        ctx.strokeStyle = C.locked;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        const bx = cx + vx * size * 0.4;
-        const by = cy + vy * size * 0.4;
-        ctx.moveTo(bx - vy * size * 0.2, by - vx * size * 0.2);
-        ctx.lineTo(bx + vy * size * 0.2, by + vx * size * 0.2);
+        ctx.moveTo(cx - size * 0.15, cy + k * size);
+        ctx.lineTo(cx + size * 0.15, cy + k * size);
         ctx.stroke();
       }
-      drawTubeArm(ctx, cx, cy, size, cell.common!, tubeFill, C.tubeEdge);
-      drawTubeArm(ctx, cx, cy, size, active, tubeFill, C.tubeEdge);
-      drawTubeJoint(ctx, cx, cy, size, tubeFill, C.tubeEdge);
-      drawGear(ctx, cx, cy, size * 0.32, o.angle ?? 0, o.locked ? C.locked : C.switchGear, o.locked ? '#7a1d20' : C.switchEdge);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = `bold ${Math.round(size * 0.3)}px system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(o.switchState ?? 'A', cx, cy + 1);
       break;
     }
     case 'gear':
-      drawGear(ctx, cx, cy, size * 0.42, o.angle ?? 0, o.locked ? C.locked : C.gear, o.locked ? '#7a1d20' : C.gearEdge);
+      drawGear(ctx, cx, cy, size * 0.36, o.angle ?? 0, red ? C.locked : C.gear, red ? '#7a1d20' : C.gearEdge);
       break;
-    case 'motor': {
-      drawGear(ctx, cx, cy, size * 0.42, o.angle ?? 0, o.locked ? C.locked : C.motor, o.locked ? '#7a1d20' : '#8a4b10');
+    case 'motor':
+      drawGear(ctx, cx, cy, size * 0.4, o.angle ?? 0, red ? C.locked : C.motor, red ? '#7a1d20' : '#8a4b10');
       ctx.fillStyle = '#1b1208';
       ctx.font = `bold ${Math.round(size * 0.34)}px system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(cell.dir === 1 ? '↻' : '↺', cx, cy + 1);
+      ctx.fillText(part.dir === 1 ? '↻' : '↺', cx, cy + 1);
+      break;
+    case 'switch': {
+      const arms = switchArms(part.arms!, part.common!);
+      const open = activeArm(part, o.state ?? 'A');
+      // 닫힌 갈래: 어둡게 + 빨간 막대
+      for (const a of arms) {
+        if (a === open) continue;
+        arm(ctx, cx, cy, size, a, C.tubeDim, '#2a2118');
+        const [vx, vy] = vec(a);
+        ctx.strokeStyle = C.locked;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        const bx = cx + vx * size * 0.38;
+        const by = cy + vy * size * 0.38;
+        ctx.moveTo(bx - vy * size * 0.18, by - vx * size * 0.18);
+        ctx.lineTo(bx + vy * size * 0.18, by + vx * size * 0.18);
+        ctx.stroke();
+      }
+      arm(ctx, cx, cy, size, part.common!, C.tube, C.tubeEdge);
+      arm(ctx, cx, cy, size, open, C.tube, C.tubeEdge);
+      // 공통 갈래 표시: 흰 점
+      const [vx, vy] = vec(part.common!);
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(cx + vx * size * 0.38, cy + vy * size * 0.38, size * 0.07, 0, Math.PI * 2);
+      ctx.fill();
+      drawGear(ctx, cx, cy, size * 0.3, o.angle ?? 0, red ? C.locked : C.switchGear, red ? '#7a1d20' : C.switchEdge);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${Math.round(size * 0.28)}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(o.state ?? 'A', cx, cy + 1);
+      break;
+    }
+    case 'plug': {
+      const s = o.plugSide ?? N;
+      const [vx, vy] = vec(s);
+      ctx.fillStyle = '#5b6170';
+      ctx.strokeStyle = '#c9d1e6';
+      ctx.lineWidth = 2;
+      const w = vx ? size * 0.16 : size * 0.5;
+      const h = vy ? size * 0.16 : size * 0.5;
+      const mx = cx + vx * size * 0.34;
+      const my = cy + vy * size * 0.34;
+      ctx.fillRect(mx - w / 2, my - h / 2, w, h);
+      ctx.strokeRect(mx - w / 2, my - h / 2, w, h);
       break;
     }
   }
-  if (o.locked && (cell.kind === 'gear' || cell.kind === 'motor' || cell.kind === 'switch')) {
-    ctx.strokeStyle = C.locked;
-    ctx.lineWidth = 3;
-    ctx.strokeRect(px + 2, py + 2, size - 4, size - 4);
-  }
-  ctx.restore();
 }
 
-export interface Ghost {
+export interface Floating {
   cells: ShapeCell[];
   x: number;
   y: number;
   ok: boolean;
 }
 
-export interface RenderState {
+export interface View {
   board: Board;
-  sim: Simulation | null;
-  startSwitches: Map<number, SwitchState>;
-  ghost: Ghost | null;
-  /** 중력 모드: 떨어지는 중인 미노 (불투명하게) */
-  active?: Ghost | null;
-  /** 중력 모드: 착지 위치 (외곽선만) */
-  landing?: Ghost | null;
-  gearAngle: Map<number, number>; // 노드 → 각도(라디안)
+  links: Links;
+  switchState: (x: number, y: number) => SwitchState | undefined;
+  locked: (x: number, y: number) => boolean;
+  gearAngle: (x: number, y: number) => number;
   pressed: Set<string>;
-  hamster: { x: number; y: number; shake: number } | null; // 격자 좌표(소수 가능)
-  inject: 'left' | 'right';
-  binCounts: number[];
-  lastBin: number | null;
+  floating: Floating | null;
+  cursor: { x: number; y: number } | null;
+  hamster: { x: number; y: number; color: number; shake: number } | null;
+  nextInject: 'left' | 'right' | null;
+  /** bins[통][색] */
+  bins: number[][];
+  blink: boolean;
 }
 
 export function canvasSize(board: Board): [number, number] {
   return [board.w * CELL, (board.h + TOP_ROWS + BIN_ROWS) * CELL];
 }
 
-const oy = TOP_ROWS * CELL;
-
-export function render(ctx: CanvasRenderingContext2D, st: RenderState) {
-  const { board, sim } = st;
+export function render(ctx: CanvasRenderingContext2D, v: View) {
+  const { board, links } = v;
   const [W_, H_] = canvasSize(board);
   ctx.fillStyle = C.bg;
   ctx.fillRect(0, 0, W_, H_);
 
-  // 투입구 줄
+  // 투입구
   ctx.font = 'bold 12px system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (const side of ['left', 'right'] as const) {
     const x = side === 'left' ? 0 : board.w - 1;
-    ctx.fillStyle = st.inject === side ? '#3b6e3f' : '#262a36';
+    ctx.fillStyle = v.nextInject === side ? '#3b6e3f' : '#262a36';
     ctx.fillRect(x * CELL + 2, 2, CELL - 4, CELL - 4);
     ctx.fillStyle = C.text;
-    ctx.fillText('▼ 투입', x * CELL + CELL / 2, CELL / 2);
+    ctx.fillText(side === 'left' ? '▼왼' : '▼오', x * CELL + CELL / 2, CELL / 2);
   }
 
   // 격자
@@ -230,23 +252,25 @@ export function render(ctx: CanvasRenderingContext2D, st: RenderState) {
   ctx.lineWidth = 1;
   for (let x = 0; x <= board.w; x++) {
     ctx.beginPath();
-    ctx.moveTo(x * CELL + 0.5, oy);
-    ctx.lineTo(x * CELL + 0.5, oy + board.h * CELL);
+    ctx.moveTo(x * CELL + 0.5, OY);
+    ctx.lineTo(x * CELL + 0.5, OY + board.h * CELL);
     ctx.stroke();
   }
   for (let y = 0; y <= board.h; y++) {
     ctx.beginPath();
-    ctx.moveTo(0, oy + y * CELL + 0.5);
-    ctx.lineTo(board.w * CELL, oy + y * CELL + 0.5);
+    ctx.moveTo(0, OY + y * CELL + 0.5);
+    ctx.lineTo(board.w * CELL, OY + y * CELL + 0.5);
     ctx.stroke();
   }
 
-  // 미노 배경 + 테두리 (미노 하나가 한 덩어리로 보이게)
+  // 미노 바탕 + 테두리
   for (const p of board.placed) {
-    ctx.fillStyle = `hsla(${(p.uid * 67) % 360}, 30%, 45%, 0.18)`;
-    for (const c of p.cells) ctx.fillRect((p.x + c.x) * CELL, oy + (p.y + c.y) * CELL, CELL, CELL);
+    for (const c of p.cells) {
+      ctx.fillStyle = c.cell.kind === 'empty' ? '#2a3040' : `hsla(${(p.uid * 67) % 360}, 25%, 35%, 0.35)`;
+      ctx.fillRect((p.x + c.x) * CELL, OY + (p.y + c.y) * CELL, CELL, CELL);
+    }
   }
-  ctx.strokeStyle = '#c9d1e6';
+  ctx.strokeStyle = 'rgba(201,209,230,0.6)';
   ctx.lineWidth = 2;
   ctx.beginPath();
   for (const p of board.placed)
@@ -255,126 +279,120 @@ export function render(ctx: CanvasRenderingContext2D, st: RenderState) {
       const gy = p.y + c.y;
       const same = (dx: number, dy: number) => board.inBounds(gx + dx, gy + dy) && board.owner[board.idx(gx + dx, gy + dy)] === p.uid;
       const x0 = gx * CELL + 1;
-      const y0 = oy + gy * CELL + 1;
+      const y0 = OY + gy * CELL + 1;
       const x1 = (gx + 1) * CELL - 1;
-      const y1 = oy + (gy + 1) * CELL - 1;
+      const y1 = OY + (gy + 1) * CELL - 1;
       if (!same(0, -1)) { ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); }
       if (!same(0, 1)) { ctx.moveTo(x0, y1); ctx.lineTo(x1, y1); }
       if (!same(-1, 0)) { ctx.moveTo(x0, y0); ctx.lineTo(x0, y1); }
       if (!same(1, 0)) { ctx.moveTo(x1, y0); ctx.lineTo(x1, y1); }
     }
-  ctx.globalAlpha = 0.55;
   ctx.stroke();
-  ctx.globalAlpha = 1;
 
-  // 칸
+  // 튜브 + 부품 + 분기점
   for (let y = 0; y < board.h; y++)
     for (let x = 0; x < board.w; x++) {
-      const c = board.at(x, y);
+      const i = board.idx(x, y);
+      const c = board.cells[i];
       if (!c) continue;
-      const node = sim?.nodeOfCell.get(board.idx(x, y));
-      const sw = c.kind === 'switch' ? (sim ? sim.switchStateAt(x, y) : st.startSwitches.get(board.idx(x, y)) ?? 'A') : undefined;
-      drawCell(ctx, c, x * CELL, oy + y * CELL, CELL, {
-        angle: node !== undefined ? st.gearAngle.get(node) ?? 0 : 0,
-        locked: sim ? sim.isCellLocked(x, y) : false,
-        switchState: sw,
-        pressed: st.pressed.has(`${x},${y}`),
-      });
+      const px = x * CELL;
+      const py = OY + y * CELL;
+      const part = board.parts.get(i);
+      if (part?.type !== 'switch') drawTubeCell(ctx, c, px, py, CELL, links.link[i]!, links.exit[i]!);
+      const deg = popcount(links.link[i]!);
+      if (deg >= 3) {
+        ctx.strokeStyle = part?.type === 'switch' ? C.switchGear : v.blink ? C.warn : '#a85a22';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(px + 3, py + 3, CELL - 6, CELL - 6);
+      }
+      if (part) {
+        drawPart(ctx, part, px, py, CELL, {
+          angle: v.gearAngle(x, y),
+          locked: v.locked(x, y),
+          state: v.switchState(x, y),
+          pressed: v.pressed.has(`${x},${y}`),
+          plugSide: c.kind === 'tube' && c.end ? oppositeOf(c.inner) : N,
+        });
+      }
     }
 
-  // 배치 미리보기
-  if (st.ghost) {
-    for (const c of st.ghost.cells) {
-      const gx = st.ghost.x + c.x;
-      const gy = st.ghost.y + c.y;
-      if (gx < 0 || gy < 0 || gx >= board.w || gy >= board.h) continue;
-      if (!st.ghost.ok) {
-        ctx.fillStyle = 'rgba(229,72,77,0.35)';
-        ctx.fillRect(gx * CELL, oy + gy * CELL, CELL, CELL);
-      }
-      drawCell(ctx, c.cell, gx * CELL, oy + gy * CELL, CELL, { ghost: true, switchState: 'A' });
+  // 떠 있는 미노
+  if (v.floating) {
+    for (const c of v.floating.cells) {
+      const gx = v.floating.x + c.x;
+      const gy = v.floating.y + c.y;
+      const px = gx * CELL;
+      const py = OY + gy * CELL;
+      ctx.fillStyle = v.floating.ok ? 'rgba(80,140,220,0.35)' : 'rgba(229,72,77,0.45)';
+      ctx.fillRect(px, py, CELL, CELL);
+      if (c.cell.kind === 'tube') drawTubeCell(ctx, c.cell, px, py, CELL, c.cell.inner, 0);
+      ctx.strokeStyle = v.floating.ok ? '#8fc1ff' : C.locked;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(px + 1, py + 1, CELL - 2, CELL - 2);
     }
   }
 
-  // 착지 위치 (외곽선)
-  if (st.landing) {
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 4]);
-    for (const c of st.landing.cells) {
-      const gx = st.landing.x + c.x;
-      const gy = st.landing.y + c.y;
-      if (gy < 0) continue;
-      ctx.strokeRect(gx * CELL + 3, oy + gy * CELL + 3, CELL - 6, CELL - 6);
-    }
+  // 부품 커서
+  if (v.cursor) {
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(v.cursor.x * CELL + 2, OY + v.cursor.y * CELL + 2, CELL - 4, CELL - 4);
     ctx.setLineDash([]);
   }
-  // 떨어지는 중인 미노
-  if (st.active) {
-    for (const c of st.active.cells) {
-      const gx = st.active.x + c.x;
-      const gy = st.active.y + c.y;
-      if (gy < 0) continue;
-      ctx.fillStyle = 'rgba(80,140,220,0.25)';
-      ctx.fillRect(gx * CELL, oy + gy * CELL, CELL, CELL);
-      drawCell(ctx, c.cell, gx * CELL, oy + gy * CELL, CELL, { switchState: 'A' });
-      ctx.strokeStyle = '#8fc1ff';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(gx * CELL + 1, oy + gy * CELL + 1, CELL - 2, CELL - 2);
-    }
-  }
 
-  // 통
-  const by = oy + board.h * CELL;
+  // 통: 색별 마릿수
+  const by = OY + board.h * CELL;
   for (let i = 0; i < binCount(board.w); i++) {
     const bx = i * BIN_WIDTH * CELL;
-    ctx.fillStyle = st.lastBin === i ? '#3b6e3f' : '#20242f';
-    ctx.fillRect(bx + 2, by + 2, BIN_WIDTH * CELL - 4, CELL - 4);
+    const w = BIN_WIDTH * CELL;
+    ctx.fillStyle = '#20242f';
+    ctx.fillRect(bx + 2, by + 2, w - 4, BIN_ROWS * CELL - 4);
     ctx.strokeStyle = '#4a5068';
-    ctx.strokeRect(bx + 2.5, by + 2.5, BIN_WIDTH * CELL - 5, CELL - 5);
+    ctx.strokeRect(bx + 2.5, by + 2.5, w - 5, BIN_ROWS * CELL - 5);
     ctx.fillStyle = C.text;
     ctx.font = '12px system-ui, sans-serif';
-    ctx.fillText(`통 ${i}`, bx + (BIN_WIDTH * CELL) / 2, by + CELL / 2 - 7);
-    ctx.fillText(`${st.binCounts[i] ?? 0}`, bx + (BIN_WIDTH * CELL) / 2, by + CELL / 2 + 8);
-  }
-
-  // 튕김 표시
-  if (sim?.bounce) {
-    ctx.strokeStyle = C.locked;
-    ctx.lineWidth = 3;
-    ctx.strokeRect(sim.bounce.x * CELL + 2, oy + sim.bounce.y * CELL + 2, CELL - 4, CELL - 4);
+    ctx.fillText(`통 ${i}`, bx + w / 2, by + 14);
+    const counts = v.bins[i] ?? [0, 0];
+    counts.forEach((n, col) => {
+      ctx.fillStyle = COLORS[col]!;
+      ctx.beginPath();
+      ctx.arc(bx + w / 2 - 18 + col * 36 - 8, by + 44, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = C.text;
+      ctx.font = 'bold 14px system-ui, sans-serif';
+      ctx.fillText(String(n), bx + w / 2 - 18 + col * 36 + 8, by + 44);
+    });
   }
 
   // 햄스터
-  if (st.hamster) {
-    const hx = (st.hamster.x + 0.5) * CELL + st.hamster.shake;
-    const hy = oy + (st.hamster.y + 0.5) * CELL;
-    ctx.fillStyle = '#c98b52';
-    ctx.strokeStyle = '#6b4220';
+  if (v.hamster) {
+    const hx = (v.hamster.x + 0.5) * CELL + v.hamster.shake;
+    const hy = OY + (v.hamster.y + 0.5) * CELL;
+    ctx.fillStyle = COLORS[v.hamster.color]!;
+    ctx.strokeStyle = '#1b1208';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(hx, hy, CELL * 0.27, 0, Math.PI * 2);
+    ctx.arc(hx, hy, CELL * 0.26, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = '#e7b98a';
+    ctx.fillStyle = '#ffe2c4';
     for (const dx of [-1, 1]) {
       ctx.beginPath();
-      ctx.arc(hx + dx * CELL * 0.17, hy - CELL * 0.2, CELL * 0.08, 0, Math.PI * 2);
+      ctx.arc(hx + dx * CELL * 0.16, hy - CELL * 0.2, CELL * 0.08, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
     }
     ctx.fillStyle = '#1b1208';
     for (const dx of [-1, 1]) {
       ctx.beginPath();
-      ctx.arc(hx + dx * CELL * 0.1, hy - CELL * 0.03, 2, 0, Math.PI * 2);
+      ctx.arc(hx + dx * CELL * 0.09, hy - CELL * 0.02, 2, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 }
 
-/** 화면 좌표 → 격자 좌표 (판 밖이면 null) */
-export function cellAt(board: Board, px: number, py: number): { x: number; y: number } | null {
-  const x = Math.floor(px / CELL);
-  const y = Math.floor((py - oy) / CELL);
-  return board.inBounds(x, y) ? { x, y } : null;
+function oppositeOf(inner: Sides): Sides {
+  // 끝 칸의 경로 반대쪽(직진 방향) = 마개가 막는 쪽
+  return inner === N ? S : inner === S ? N : inner === E ? 8 : E;
 }
