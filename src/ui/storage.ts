@@ -57,8 +57,30 @@ export function isUnlocked(ids: string[], index: number): boolean {
   return bestPrice(ids[index - 1]!) !== undefined;
 }
 
+const SEEN_KEY = 'hamster-runtime:tutorial-seen:v1';
+let seenMemory = new Set<string>();
+/** 안내를 끝까지 봤는가 (샌드박스용) */
+export function tutorialSeen(id: string): boolean {
+  try {
+    const raw = localStorage.getItem(SEEN_KEY);
+    if (raw) for (const v of JSON.parse(raw) as string[]) seenMemory.add(v);
+  } catch {
+    /* 메모리만 */
+  }
+  return seenMemory.has(id);
+}
+export function markTutorialSeen(id: string): void {
+  seenMemory.add(id);
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify([...seenMemory]));
+  } catch {
+    /* 메모리만 */
+  }
+}
+
 /** 테스트용 */
 export function _resetForTest(): void {
   memory = { best: {} };
   loaded = false;
+  seenMemory = new Set();
 }
