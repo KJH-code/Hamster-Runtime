@@ -1,9 +1,9 @@
 import { Board } from '../core/board';
 import { Simulation, type Inject } from '../core/hamster';
 import { buildShape, rotateShape } from '../core/mino';
-import { BOARD_H, BOARD_W, SwitchState } from '../core/types';
+import { BOARD_H, BOARD_W, Cell, E, N, S, SwitchState, W } from '../core/types';
 import { MINOS } from '../data/minos';
-import { CELL, canvasSize, cellAt, drawCell, render, type RenderState } from './render';
+import { CELL, canvasSize, cellAt, drawCell, render, type CellDrawOpts, type RenderState } from './render';
 
 type Tool = 'place' | 'delete' | 'switch';
 
@@ -41,49 +41,28 @@ export function startApp(root: HTMLElement) {
   root.innerHTML = '';
   root.className = 'app';
   const left = el('div', 'left');
+  const panel = el('div', 'panel');
+  root.append(left, panel);
+
+  left.append(el('h1', '', 'Hamster Runtime · 샌드박스'));
+  const status = el('div', 'status', '미노를 놓고 ▶ 실행');
+  left.append(status);
+
   const canvas = document.createElement('canvas');
   const [cw, ch] = canvasSize(board);
   const dpr = window.devicePixelRatio || 1;
   canvas.width = cw * dpr;
   canvas.height = ch * dpr;
-  canvas.style.width = `${cw}px`;
-  canvas.style.height = `${ch}px`;
+  canvas.className = 'board';
+  canvas.style.aspectRatio = `${cw} / ${ch}`;
   const ctx = canvas.getContext('2d')!;
   ctx.scale(dpr, dpr);
   left.append(canvas);
-  const panel = el('div', 'panel');
-  root.append(left, panel);
 
-  panel.append(el('h1', '', 'Hamster Runtime · 샌드박스'));
-  const status = el('div', 'status', '미노를 놓고 ▶ 실행');
-  panel.append(status);
-
-  // 팔레트
-  panel.append(el('h2', '', '미노 팔레트 (R: 회전)'));
-  const paletteBox = el('div', 'palette');
-  const paletteBtns: { id: string; btn: HTMLButtonElement; cv: HTMLCanvasElement }[] = [];
-  for (const d of MINOS) {
-    const btn = document.createElement('button');
-    btn.className = 'pal';
-    btn.title = d.name;
-    const cv = document.createElement('canvas');
-    cv.width = 112;
-    cv.height = 112;
-    btn.append(cv, el('span', '', d.name));
-    btn.onclick = () => {
-      selected = d.id;
-      tool = 'place';
-      refreshUi();
-    };
-    paletteBox.append(btn);
-    paletteBtns.push({ id: d.id, btn, cv });
-  }
-  panel.append(paletteBox);
-
-  const row = (label?: string) => {
+  const row = (parent: HTMLElement, label?: string) => {
     const r = el('div', 'row');
     if (label) r.append(el('span', 'lbl', label));
-    panel.append(r);
+    parent.append(r);
     return r;
   };
   const btn = (text: string, onClick: () => void, cls = '') => {
@@ -94,30 +73,55 @@ export function startApp(root: HTMLElement) {
     return b;
   };
 
-  const toolRow = row('도구');
-  const toolBtns: Record<Tool, HTMLButtonElement> = {
-    place: btn('배치', () => setTool('place')),
-    delete: btn('삭제', () => setTool('delete')),
-    switch: btn('스위치 A/B', () => setTool('switch')),
-  };
-  toolRow.append(toolBtns.place, toolBtns.delete, toolBtns.switch, btn('회전 R', () => rotate()), btn('초기화', () => clearBoard()));
-
-  const injRow = row('투입구');
-  const injBtns = {
-    left: btn('왼쪽', () => setInject('left')),
-    right: btn('오른쪽', () => setInject('right')),
-  };
-  injRow.append(injBtns.left, injBtns.right);
-
-  const runRow = row('실행');
-  const runBtn = btn('▶ 실행', () => toggleRun());
+  // 실행 (판 바로 아래)
+  const runRow = row(left);
+  runRow.classList.add('runrow');
+  const runBtn = btn('▶ 실행', () => toggleRun(), 'primary');
   runRow.append(
     runBtn,
     btn('한 칸 ⏭', () => stepOnce()),
     btn('⟲ 리셋', () => resetSim()),
     btn('다음 햄스터 ↻', () => nextHamster()),
   );
-  const speedRow = row('속도');
+
+  // 팔레트
+  left.append(el('h2', '', '미노 (R / 회전 버튼으로 돌리기)'));
+  const paletteBox = el('div', 'palette');
+  const paletteBtns: { id: string; btn: HTMLButtonElement; cv: HTMLCanvasElement }[] = [];
+  for (const d of MINOS) {
+    const b = document.createElement('button');
+    b.className = 'pal';
+    b.title = d.name;
+    const cv = document.createElement('canvas');
+    cv.width = 112;
+    cv.height = 112;
+    b.append(cv, el('span', '', d.name));
+    b.onclick = () => {
+      selected = d.id;
+      tool = 'place';
+      refreshUi();
+    };
+    paletteBox.append(b);
+    paletteBtns.push({ id: d.id, btn: b, cv });
+  }
+  left.append(paletteBox);
+
+  const toolRow = row(left, '도구');
+  const toolBtns: Record<Tool, HTMLButtonElement> = {
+    place: btn('배치', () => setTool('place')),
+    delete: btn('삭제', () => setTool('delete')),
+    switch: btn('스위치 A/B', () => setTool('switch')),
+  };
+  toolRow.append(toolBtns.place, toolBtns.delete, toolBtns.switch, btn('회전 ↻', () => rotate()), btn('초기화', () => clearBoard(), 'danger'));
+
+  const injRow = row(panel, '투입구');
+  const injBtns = {
+    left: btn('왼쪽', () => setInject('left')),
+    right: btn('오른쪽', () => setInject('right')),
+  };
+  injRow.append(injBtns.left, injBtns.right);
+
+  const speedRow = row(panel, '속도');
   const speedInput = document.createElement('input');
   speedInput.type = 'range';
   speedInput.min = '80';
@@ -130,6 +134,32 @@ export function startApp(root: HTMLElement) {
   const swBox = el('div', 'swlist');
   panel.append(swBox);
 
+  panel.append(el('h2', '', '범례'));
+  const legend = el('div', 'legend');
+  const legendItems: [string, Cell, CellDrawOpts][] = [
+    ['튜브', { kind: 'tube', open: N | S }, {}],
+    ['센서(압력판)', { kind: 'sensor', open: N | S }, {}],
+    ['기어', { kind: 'gear', open: 0 }, {}],
+    ['모터 ↻시계', { kind: 'motor', open: 0, dir: 1 }, {}],
+    ['모터 ↺반시계', { kind: 'motor', open: 0, dir: -1 }, {}],
+    ['스위치(A/B)', { kind: 'switch', open: S | W | E, common: S, armA: W, armB: E }, { switchState: 'A' }],
+    ['잠긴 기어', { kind: 'gear', open: 0 }, { locked: true }],
+    ['빈칸', { kind: 'empty', open: 0 }, {}],
+  ];
+  for (const [name, cell, opts] of legendItems) {
+    const item = el('div', 'lg');
+    const cv = document.createElement('canvas');
+    cv.width = 64;
+    cv.height = 64;
+    const c = cv.getContext('2d')!;
+    c.fillStyle = '#1b1f2a';
+    c.fillRect(0, 0, 64, 64);
+    drawCell(c, cell, 0, 0, 64, opts);
+    item.append(cv, el('span', '', name));
+    legend.append(item);
+  }
+  panel.append(legend);
+
   panel.append(el('h2', '', '기록'));
   const logBox = el('div', 'log');
   panel.append(logBox);
@@ -138,8 +168,8 @@ export function startApp(root: HTMLElement) {
     el(
       'p',
       'help',
-      '좌클릭 배치 · 우클릭 삭제 · R 회전 · Space 실행/일시정지. ' +
-        '"리셋" = 스위치 시작 상태로 되돌림. "다음 햄스터" = 스위치·잠김 상태를 그대로 두고 새 햄스터를 투입(토글 확인용).',
+      '배치: 판을 누른 채 끌어서 위치를 맞추고 떼면 놓임 (마우스는 클릭). 삭제: 삭제 도구 또는 우클릭. ' +
+        'R 회전 · Space 실행/일시정지. "리셋" = 스위치 시작 상태로. "다음 햄스터" = 스위치·잠김 상태를 그대로 두고 새 햄스터 투입(토글 확인용).',
     ),
   );
 
@@ -271,20 +301,12 @@ export function startApp(root: HTMLElement) {
     const y = hover.y - Math.floor(h / 2);
     return { cells: shape, x, y, ok: board.canPlace(shape, x, y) };
   }
-  function pos(e: MouseEvent) {
+  function pos(e: PointerEvent | MouseEvent) {
     const r = canvas.getBoundingClientRect();
-    return cellAt(board, e.clientX - r.left, e.clientY - r.top);
+    const k = cw / r.width; // CSS 크기 → 그리기 좌표
+    return cellAt(board, (e.clientX - r.left) * k, (e.clientY - r.top) * k);
   }
-  canvas.addEventListener('mousemove', (e) => (hover = pos(e)));
-  canvas.addEventListener('mouseleave', () => (hover = null));
-  canvas.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-    const p = pos(e);
-    if (p && board.removeAt(p.x, p.y)) onBoardEdited();
-  });
-  canvas.addEventListener('click', (e) => {
-    const p = pos(e);
-    if (!p) return;
+  function act(p: { x: number; y: number }) {
     if (tool === 'place') {
       const g = ghostFor();
       if (g?.ok && board.place(selected, rot, g.x, g.y)) onBoardEdited();
@@ -298,6 +320,38 @@ export function startApp(root: HTMLElement) {
         resetSim();
       }
     }
+  }
+  let pressing = false;
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    pressing = true;
+    canvas.setPointerCapture(e.pointerId);
+    hover = pos(e);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (e.pointerType === 'mouse' || pressing) hover = pos(e);
+  });
+  canvas.addEventListener('pointerup', (e) => {
+    if (!pressing) return;
+    pressing = false;
+    const p = pos(e);
+    if (p) {
+      hover = p;
+      act(p);
+    }
+    if (e.pointerType !== 'mouse') hover = null;
+  });
+  canvas.addEventListener('pointercancel', () => {
+    pressing = false;
+    hover = null;
+  });
+  canvas.addEventListener('pointerleave', (e) => {
+    if (e.pointerType === 'mouse' && !pressing) hover = null;
+  });
+  canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const p = pos(e);
+    if (p && board.removeAt(p.x, p.y)) onBoardEdited();
   });
   window.addEventListener('keydown', (e) => {
     if (e.key === 'r' || e.key === 'R') rotate();

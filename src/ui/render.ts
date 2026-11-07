@@ -14,6 +14,8 @@ const C = {
   tubeDim: '#5a4a33',
   gear: '#7fa6d8',
   gearEdge: '#2d4a73',
+  switchGear: '#b48cf2',
+  switchEdge: '#4b2d7a',
   motor: '#f0a04b',
   locked: '#e5484d',
   sensor: '#53c26b',
@@ -114,9 +116,17 @@ export function drawCell(ctx: CanvasRenderingContext2D, cell: Cell, px: number, 
         ctx.strokeStyle = '#1d5a2c';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(cx - size * 0.24, cy - size * 0.24, size * 0.48, size * 0.48, 5);
+        ctx.roundRect(cx - size * 0.27, cy - size * 0.27, size * 0.54, size * 0.54, 4);
         ctx.fill();
         ctx.stroke();
+        ctx.strokeStyle = '#1d5a2c';
+        ctx.lineWidth = 1.5;
+        for (const k of [-0.1, 0, 0.1]) {
+          ctx.beginPath();
+          ctx.moveTo(cx - size * 0.17, cy + k * size);
+          ctx.lineTo(cx + size * 0.17, cy + k * size);
+          ctx.stroke();
+        }
       }
       break;
     }
@@ -124,11 +134,22 @@ export function drawCell(ctx: CanvasRenderingContext2D, cell: Cell, px: number, 
       const active = o.switchState === 'B' ? cell.armB! : cell.armA!;
       const inactive = o.switchState === 'B' ? cell.armA! : cell.armB!;
       drawTubeArm(ctx, cx, cy, size, inactive, C.tubeDim, '#2a2118'); // 닫힌 갈래
+      {
+        const [vx, vy] = sideVec(inactive);
+        ctx.strokeStyle = C.locked;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        const bx = cx + vx * size * 0.4;
+        const by = cy + vy * size * 0.4;
+        ctx.moveTo(bx - vy * size * 0.2, by - vx * size * 0.2);
+        ctx.lineTo(bx + vy * size * 0.2, by + vx * size * 0.2);
+        ctx.stroke();
+      }
       drawTubeArm(ctx, cx, cy, size, cell.common!, tubeFill, C.tubeEdge);
       drawTubeArm(ctx, cx, cy, size, active, tubeFill, C.tubeEdge);
       drawTubeJoint(ctx, cx, cy, size, tubeFill, C.tubeEdge);
-      drawGear(ctx, cx, cy, size * 0.3, o.angle ?? 0, o.locked ? C.locked : C.gear, o.locked ? '#7a1d20' : C.gearEdge);
-      ctx.fillStyle = '#0d1420';
+      drawGear(ctx, cx, cy, size * 0.32, o.angle ?? 0, o.locked ? C.locked : C.switchGear, o.locked ? '#7a1d20' : C.switchEdge);
+      ctx.fillStyle = '#ffffff';
       ctx.font = `bold ${Math.round(size * 0.3)}px system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -216,11 +237,31 @@ export function render(ctx: CanvasRenderingContext2D, st: RenderState) {
     ctx.stroke();
   }
 
-  // 미노 배경(같은 미노끼리 같은 색조)
+  // 미노 배경 + 테두리 (미노 하나가 한 덩어리로 보이게)
   for (const p of board.placed) {
-    ctx.fillStyle = `hsla(${(p.uid * 67) % 360}, 35%, 40%, 0.22)`;
-    for (const c of p.cells) ctx.fillRect((p.x + c.x) * CELL + 1, oy + (p.y + c.y) * CELL + 1, CELL - 1, CELL - 1);
+    ctx.fillStyle = `hsla(${(p.uid * 67) % 360}, 30%, 45%, 0.18)`;
+    for (const c of p.cells) ctx.fillRect((p.x + c.x) * CELL, oy + (p.y + c.y) * CELL, CELL, CELL);
   }
+  ctx.strokeStyle = '#c9d1e6';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (const p of board.placed)
+    for (const c of p.cells) {
+      const gx = p.x + c.x;
+      const gy = p.y + c.y;
+      const same = (dx: number, dy: number) => board.inBounds(gx + dx, gy + dy) && board.owner[board.idx(gx + dx, gy + dy)] === p.uid;
+      const x0 = gx * CELL + 1;
+      const y0 = oy + gy * CELL + 1;
+      const x1 = (gx + 1) * CELL - 1;
+      const y1 = oy + (gy + 1) * CELL - 1;
+      if (!same(0, -1)) { ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); }
+      if (!same(0, 1)) { ctx.moveTo(x0, y1); ctx.lineTo(x1, y1); }
+      if (!same(-1, 0)) { ctx.moveTo(x0, y0); ctx.lineTo(x0, y1); }
+      if (!same(1, 0)) { ctx.moveTo(x1, y0); ctx.lineTo(x1, y1); }
+    }
+  ctx.globalAlpha = 0.55;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
 
   // 칸
   for (let y = 0; y < board.h; y++)
