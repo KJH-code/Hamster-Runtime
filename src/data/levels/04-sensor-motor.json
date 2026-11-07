@@ -1,0 +1,120 @@
+{
+  "id": "04-sensor-motor",
+  "name": "첫 손님만",
+  "mechanic": "센서 칸에 햄스터가 들어가면 옆 모터가 돌고, 맞물린 기어를 따라 스위치가 한 칸 넘어간다.",
+  "w": 8,
+  "h": 9,
+  "queue": [
+    {
+      "color": "red",
+      "inject": "left"
+    },
+    {
+      "color": "blue",
+      "inject": "left"
+    },
+    {
+      "color": "blue",
+      "inject": "left"
+    },
+    {
+      "color": "red",
+      "inject": "left"
+    }
+  ],
+  "bins": [
+    {
+      "red": 1,
+      "blue": 2
+    },
+    {
+      "red": 0,
+      "blue": 0
+    },
+    {
+      "red": 0,
+      "blue": 0
+    },
+    {
+      "red": 1,
+      "blue": 0
+    }
+  ],
+  "allowed": {
+    "minos": [
+      "O-empty",
+      "I-empty"
+    ],
+    "parts": [
+      "switch",
+      "sensor",
+      "motor",
+      "gear"
+    ]
+  },
+  "budget": 13,
+  "fixed": {
+    "minos": [
+      {
+        "id": "J-tube",
+        "r": 0,
+        "x": 0,
+        "y": 2
+      },
+      {
+        "id": "I-tube",
+        "r": 1,
+        "x": 1,
+        "y": 3
+      },
+      {
+        "id": "L-tube",
+        "r": 2,
+        "x": 0,
+        "y": 5
+      },
+      {
+        "id": "J-tube",
+        "r": 2,
+        "x": 4,
+        "y": 5
+      }
+    ],
+    "parts": []
+  },
+  "solution": {
+    "minos": [
+      {
+        "id": "O-empty",
+        "r": 0,
+        "x": 4,
+        "y": 4
+      }
+    ],
+    "parts": [
+      {
+        "x": 3,
+        "y": 6,
+        "type": "switch",
+        "common": "N",
+        "start": "A"
+      },
+      {
+        "x": 4,
+        "y": 6,
+        "type": "sensor"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "type": "motor",
+        "dir": "cw"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "type": "gear"
+      }
+    ]
+  }
+}

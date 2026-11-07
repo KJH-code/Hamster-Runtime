@@ -1,0 +1,130 @@
+{
+  "id": "05-gear-parity",
+  "name": "홀짝",
+  "mechanic": "맞물린 기어는 서로 반대 방향으로 돈다. 몇 개를 거치느냐가 스위치가 도는 방향을 정한다.",
+  "w": 8,
+  "h": 10,
+  "queue": [
+    {
+      "color": "blue",
+      "inject": "left"
+    },
+    {
+      "color": "red",
+      "inject": "left"
+    },
+    {
+      "color": "blue",
+      "inject": "left"
+    },
+    {
+      "color": "red",
+      "inject": "left"
+    }
+  ],
+  "bins": [
+    {
+      "red": 2,
+      "blue": 1
+    },
+    {
+      "red": 0,
+      "blue": 0
+    },
+    {
+      "red": 0,
+      "blue": 0
+    },
+    {
+      "red": 0,
+      "blue": 1
+    }
+  ],
+  "allowed": {
+    "minos": [],
+    "parts": [
+      "motor",
+      "gear"
+    ]
+  },
+  "budget": 9,
+  "fixed": {
+    "minos": [
+      {
+        "id": "J-tube",
+        "r": 0,
+        "x": 0,
+        "y": 2
+      },
+      {
+        "id": "I-tube",
+        "r": 1,
+        "x": 1,
+        "y": 3
+      },
+      {
+        "id": "L-tube",
+        "r": 2,
+        "x": 0,
+        "y": 5
+      },
+      {
+        "id": "J-tube",
+        "r": 2,
+        "x": 4,
+        "y": 5
+      },
+      {
+        "id": "I-empty",
+        "r": 1,
+        "x": 5,
+        "y": 6
+      }
+    ],
+    "parts": [
+      {
+        "x": 3,
+        "y": 6,
+        "type": "switch",
+        "common": "N",
+        "start": "A"
+      },
+      {
+        "x": 6,
+        "y": 7,
+        "type": "sensor"
+      }
+    ]
+  },
+  "solution": {
+    "minos": [],
+    "parts": [
+      {
+        "x": 7,
+        "y": 7,
+        "type": "motor",
+        "dir": "ccw"
+      },
+      {
+        "x": 7,
+        "y": 6,
+        "type": "gear"
+      },
+      {
+        "x": 6,
+        "y": 6,
+        "type": "gear"
+      },
+      {
+        "x": 5,
+        "y": 6,
+        "type": "gear"
+      },
+      {
+        "x": 4,
+        "y": 6,
+        "type": "gear"
+      }
+    ]
+  }
+}
