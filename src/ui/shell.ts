@@ -29,5 +29,6 @@ export function startShell(root: HTMLElement) {
     show(startSandbox(root, sandboxState, menu, (level) => show(startLevel(root, { level, record: false, onExit: sandbox }))));
   }
   window.addEventListener('keydown', (e) => screen?.key(e));
+  window.addEventListener('keyup', (e) => screen?.keyUp?.(e));
   menu();
 }

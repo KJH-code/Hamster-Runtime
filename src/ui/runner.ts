@@ -127,5 +127,16 @@ export function sizeCanvas(canvas: HTMLCanvasElement, w: number, h: number): Can
 /** 화면 하나: 키 처리기와 정리 함수 */
 export interface Screen {
   key(e: KeyboardEvent): void;
+  keyUp?(e: KeyboardEvent): void;
   dispose(): void;
+}
+
+/** 판 아래 '지금 쓸 키' 줄 */
+export function renderHints(box: HTMLElement, pairs: [string, string][]) {
+  box.innerHTML = '';
+  for (const [k, what] of pairs) {
+    const chip = el('span', 'hint');
+    chip.append(el('kbd', '', k), el('span', '', what));
+    box.append(chip);
+  }
 }

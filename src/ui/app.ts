@@ -10,7 +10,7 @@ import { MINOS, PIECE_ORDER } from '../data/minos';
 import { canvasSize, COLORS, render } from './render';
 import type { Level } from '../core/level';
 import { fixedUids, levelModeKey, minoKey as placedKey, renderLevelPanel, saveReference, type SandboxState } from './levelEditor';
-import { sizeCanvas, type Screen } from './runner';
+import { renderHints, sizeCanvas, type Screen } from './runner';
 
 type Mode = 'mino' | 'part' | 'queue' | 'level';
 const PARTS: { type: PartType; dir?: Dir; label: string }[] = [
@@ -82,16 +82,20 @@ export function startSandbox(
   };
   fitCanvas();
   left.append(canvas);
+  const hints = el('div', 'hints');
   const msg = el('div', 'status');
-  left.append(msg);
+  left.append(hints, msg);
 
   const selBox = el('div', 'sel');
   const keysBox = el('div', 'keys');
+  const keysHead = el('h2', '', '전체 키 (? 로 닫기)');
+  let helpOpen = false;
+  let shiftAlone = false;
   const queueBox = el('div', 'queue');
   const tallyBox = el('div', 'tally');
   const levelBox = el('div', '');
   const levelHead = el('h2', '', '레벨 설정 (L)');
-  panel.append(el('h1', '', 'Hamster Runtime · 샌드박스'), el('div', 'dim', 'Esc 레벨 목록 · L 레벨 에디터'), selBox, el('h2', '', '키'), keysBox, levelHead, levelBox, el('h2', '', '대기열 (Tab)'), queueBox, el('h2', '', '결과'), tallyBox);
+  panel.append(el('h1', '', 'Hamster Runtime · 샌드박스'), el('div', 'dim', 'Esc 레벨 목록 · L 레벨 에디터'), selBox, keysHead, keysBox, levelHead, levelBox, el('h2', '', '대기열 (Tab)'), queueBox, el('h2', '', '결과'), tallyBox);
 
   // ---------- 상태 헬퍼 ----------
   const variantsOf = (p: string) => MINOS.filter((d) => d.piece === p);
@@ -124,16 +128,15 @@ export function startSandbox(
     const k = e.key;
     const lower = k.length === 1 ? k.toLowerCase() : k;
     const ctrl = e.ctrlKey || e.metaKey;
+    if (k !== 'Shift') shiftAlone = false;
     if (k === 'Escape') return handled(e, onExit);
+    if (k === '?' || (lower === 'h' && mode !== 'level')) return handled(e, () => (helpOpen = !helpOpen));
     if (ctrl && lower === 'z' && !e.shiftKey) return handled(e, () => (ed.undo() ? (resetRun(), say('되돌림')) : say('되돌릴 것 없음')));
     if (ctrl && (lower === 'y' || (lower === 'z' && e.shiftKey))) return handled(e, () => (ed.redo() ? (resetRun(), say('다시 함')) : say('다시 할 것 없음')));
     if (ctrl) return;
     if (k === 'Shift') {
-      if (e.repeat) return;
-      return handled(e, () => {
-        mode = mode === 'mino' ? 'part' : mode === 'part' ? 'mino' : lastEditMode === 'mino' ? 'part' : 'mino';
-        lastEditMode = mode as 'mino' | 'part';
-      });
+      if (!e.repeat) shiftAlone = true;
+      return;
     }
     if (k === 'Tab') return handled(e, () => (mode = mode === 'queue' ? lastEditMode : 'queue'));
     if (lower === 'l') return handled(e, () => (mode = mode === 'level' ? lastEditMode : 'level'));
@@ -307,6 +310,18 @@ export function startSandbox(
   }
 
   // ---------- 패널 ----------
+  /** 지금 상황에서 쓸 키 3~4개 */
+  function hintPairs(): [string, string][] {
+    if (run) return [['R', '멈추고 리셋']];
+    if (mode === 'mino') return [['1~7', '모양'], ['방향키', '옮기기'], ['X / Z', '회전'], ['Space', '놓기']];
+    if (mode === 'part') {
+      if (ed.board.partAt(cursor.x, cursor.y)?.type === 'switch') return [['A / B', '시작 방향'], ['X / Z', '공통(흰 점) 돌리기'], ['Delete', '지우기']];
+      return [['방향키', '칸 고르기'], ['1~6', '부품 고르기'], ['Space', '놓기'], ['Shift', '미노로']];
+    }
+    if (mode === 'queue') return [['↑ ↓', '햄스터 고르기'], ['← →', '투입구'], ['1 / 2', '색'], ['Space', '추가']];
+    return [['↑ ↓', '항목'], ['← → / Space', '값 바꾸기'], ['P', '참조 풀이로 저장'], ['T', '시험 플레이']];
+  }
+
   function refresh() {
     cursor.x = Math.min(cursor.x, ed.board.w - 1);
     cursor.y = Math.min(cursor.y, ed.board.h - 1);
@@ -316,7 +331,7 @@ export function startSandbox(
       const b = el('span', 'mode' + (mode === m ? ' on' : ''), label);
       modeBar.append(b);
     }
-    modeBar.append(el('span', 'dim', `  ${modeName} · Shift 미노↔부품 · Tab 대기열 · L 레벨`));
+    modeBar.append(el('span', 'dim', `  ${modeName} · ? 전체 키`));
 
     selBox.innerHTML = '';
     if (mode === 'mino') {
@@ -338,6 +353,8 @@ export function startSandbox(
     levelHead.hidden = levelBox.hidden = mode !== 'level';
     if (mode === 'level') renderLevelPanel(st, levelBox);
 
+    renderHints(hints, hintPairs());
+    keysHead.hidden = keysBox.hidden = !helpOpen;
     keysBox.innerHTML = '';
     const rows: [string, string][] =
       mode === 'mino'
@@ -347,7 +364,7 @@ export function startSandbox(
           : mode === 'queue'
             ? [['↑ / ↓', '햄스터 선택'], ['← / →', '투입구 왼/오'], ['1 / 2', '색 빨강/파랑'], ['Space / Enter', '선택 뒤에 추가'], ['Delete', '삭제']]
             : [['↑ / ↓', '항목 고르기'], ['← / →', '숫자 바꾸기'], ['Space', '사용 가능 켜고 끄기'], ['Enter', '글자 넣기'], ['P', '현재 배치를 참조 풀이로 저장'], ['T', '저장한 레벨 시험 플레이']];
-    rows.push(['Shift', '미노 ↔ 부품 모드'], ['Tab', '대기열 모드'], ['L', '레벨 설정 모드'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시 하기'], ['R', '실행 / 리셋 (레벨 모드 밖)'], ['Esc', '레벨 목록']);
+    rows.push(['Shift', '미노 ↔ 부품 모드'], ['Tab', '대기열 모드'], ['L', '레벨 설정 모드'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시 하기'], ['R', '실행 / 리셋 (레벨 모드 밖)'], ['Esc', '레벨 목록'], ['? / H', '이 목록 열고 닫기']);
     for (const [key, what] of rows) {
       const r = el('div', 'krow');
       r.append(el('kbd', '', key), el('span', '', what));
@@ -465,6 +482,13 @@ export function startSandbox(
   };
   return {
     key,
+    keyUp(e: KeyboardEvent) {
+      if (e.key !== 'Shift' || !shiftAlone) return;
+      shiftAlone = false;
+      mode = mode === 'mino' ? 'part' : mode === 'part' ? 'mino' : lastEditMode === 'mino' ? 'part' : 'mino';
+      lastEditMode = mode as 'mino' | 'part';
+      refresh();
+    },
     dispose() {
       alive = false;
     },
