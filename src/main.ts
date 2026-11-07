@@ -1,4 +1,4 @@
 import './ui/style.css';
-import { startApp } from './ui/app';
+import { startShell } from './ui/shell';
 
-startApp(document.getElementById('app')!);
+startShell(document.getElementById('app')!);

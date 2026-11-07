@@ -12,6 +12,8 @@ import type { QueueItem } from './hamster';
 import { BOARD_H, BOARD_W, Dir, Part, PartType, ShapeCell, SwitchState, SWITCH_STATES } from './types';
 
 interface Snapshot {
+  w: number;
+  h: number;
   minos: [string, number, number, number][];
   parts: [number, Part][];
   queue: QueueItem[];
@@ -43,13 +45,15 @@ export class Editor {
   // ---------- 스냅샷 / 되돌리기 ----------
   private snap(): Snapshot {
     return {
+      w: this.board.w,
+      h: this.board.h,
       minos: this.board.placed.map((p) => [p.defId, p.rot, p.x, p.y]),
       parts: Array.from(this.board.parts.entries()).map(([i, p]) => [i, { ...p }]),
       queue: this.queue.map((q) => ({ ...q })),
     };
   }
   private restore(s: Snapshot): void {
-    const b = new Board(this.board.w, this.board.h);
+    const b = new Board(s.w, s.h);
     for (const [id, r, x, y] of s.minos) b.place(id, r, x, y, this.defs);
     for (const [i, p] of s.parts) b.parts.set(i, { ...p });
     this.board = b;
@@ -160,6 +164,26 @@ export class Editor {
       if (p?.type !== 'switch') return fail('스위치가 아니다');
       if (SWITCH_STATES.indexOf(state) >= switchArms(p.arms!, p.common!).length) return fail(`이 스위치에는 ${state} 갈래가 없다`);
       p.start = state;
+      return OK;
+    });
+  }
+
+  // ---------- 판 크기 ----------
+  /** 판 크기를 바꾼다. 들어가는 미노·부품만 남기고, 갈래가 바뀐 스위치는 지운다 */
+  resize(w: number, h: number): Result {
+    if (w < 2 || h < 2) return fail('판이 너무 작다');
+    return this.edit(() => {
+      const old = this.board;
+      const b = new Board(w, h);
+      for (const p of old.placed) b.placeCells(p.defId, p.rot, p.cells, p.x, p.y);
+      for (const [i, part] of old.parts) {
+        const x = i % old.w;
+        const y = Math.floor(i / old.w);
+        if (b.inBounds(x, y) && b.at(x, y)) b.parts.set(b.idx(x, y), { ...part });
+      }
+      const links = computeLinks(b);
+      for (const [i, part] of [...b.parts]) if (part.type === 'switch' && links.link[i] !== part.arms) b.parts.delete(i);
+      this.board = b;
       return OK;
     });
   }

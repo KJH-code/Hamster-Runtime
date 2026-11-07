@@ -1,0 +1,39 @@
+{
+  "id": "03-switch-start",
+  "name": "선로 전환",
+  "mechanic": "스위치는 분기점에서 공통 갈래(흰 점)와 열린 갈래 하나만 잇는다. 시작 상태로 열린 갈래를 고른다.",
+  "w": 8,
+  "h": 9,
+  "queue": [
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "left" },
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "right" }
+  ],
+  "bins": [
+    { "red": 2, "blue": 1 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 1 }
+  ],
+  "allowed": {
+    "minos": [],
+    "parts": ["switch"]
+  },
+  "budget": 4,
+  "fixed": {
+    "minos": [
+      { "id": "J-tube", "r": 0, "x": 0, "y": 2 },
+      { "id": "I-tube", "r": 1, "x": 1, "y": 3 },
+      { "id": "L-tube", "r": 2, "x": 0, "y": 5 },
+      { "id": "J-tube", "r": 2, "x": 4, "y": 5 }
+    ],
+    "parts": []
+  },
+  "solution": {
+    "minos": [],
+    "parts": [
+      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "B" }
+    ]
+  }
+}

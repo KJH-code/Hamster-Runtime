@@ -223,6 +223,12 @@ export interface View {
   /** bins[통][색] */
   bins: number[][];
   blink: boolean;
+  /** 레벨 모드: 떨어질 자리 미리보기 */
+  ghost?: Floating | null;
+  /** 레벨 모드: 통별 목표 [빨강, 파랑] */
+  goals?: number[][] | null;
+  /** 고정 미노 uid (어둡게) */
+  fixedUids?: Set<number>;
 }
 
 export function canvasSize(board: Board): [number, number] {
@@ -266,7 +272,8 @@ export function render(ctx: CanvasRenderingContext2D, v: View) {
   // 미노 바탕 + 테두리
   for (const p of board.placed) {
     for (const c of p.cells) {
-      ctx.fillStyle = c.cell.kind === 'empty' ? '#2a3040' : `hsla(${(p.uid * 67) % 360}, 25%, 35%, 0.35)`;
+      const fixed = v.fixedUids?.has(p.uid);
+      ctx.fillStyle = fixed ? '#3a3328' : c.cell.kind === 'empty' ? '#2a3040' : `hsla(${(p.uid * 67) % 360}, 25%, 35%, 0.35)`;
       ctx.fillRect((p.x + c.x) * CELL, OY + (p.y + c.y) * CELL, CELL, CELL);
     }
   }
@@ -316,11 +323,25 @@ export function render(ctx: CanvasRenderingContext2D, v: View) {
       }
     }
 
+  // 착지 미리보기
+  if (v.ghost) {
+    ctx.strokeStyle = 'rgba(143,193,255,0.55)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 3]);
+    for (const c of v.ghost.cells) {
+      const gy = v.ghost.y + c.y;
+      if (gy < 0) continue;
+      ctx.strokeRect((v.ghost.x + c.x) * CELL + 3, OY + gy * CELL + 3, CELL - 6, CELL - 6);
+    }
+    ctx.setLineDash([]);
+  }
+
   // 떠 있는 미노
   if (v.floating) {
     for (const c of v.floating.cells) {
       const gx = v.floating.x + c.x;
       const gy = v.floating.y + c.y;
+      if (gy < 0) continue;
       const px = gx * CELL;
       const py = OY + gy * CELL;
       ctx.fillStyle = v.floating.ok ? 'rgba(80,140,220,0.35)' : 'rgba(229,72,77,0.45)';
@@ -352,8 +373,15 @@ export function render(ctx: CanvasRenderingContext2D, v: View) {
     ctx.strokeRect(bx + 2.5, by + 2.5, w - 5, BIN_ROWS * CELL - 5);
     ctx.fillStyle = C.text;
     ctx.font = '12px system-ui, sans-serif';
-    ctx.fillText(`통 ${i}`, bx + w / 2, by + 14);
+    const goal = v.goals?.[i];
     const counts = v.bins[i] ?? [0, 0];
+    const met = goal && counts[0] === goal[0] && counts[1] === goal[1];
+    ctx.fillText(goal ? `목표 ${goal[0]}·${goal[1]}` : `통 ${i}`, bx + w / 2, by + 14);
+    if (goal && v.bins.length) {
+      ctx.strokeStyle = met ? '#53c26b' : '#e5484d';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bx + 3.5, by + 3.5, w - 7, BIN_ROWS * CELL - 7);
+    }
     counts.forEach((n, col) => {
       ctx.fillStyle = COLORS[col]!;
       ctx.beginPath();

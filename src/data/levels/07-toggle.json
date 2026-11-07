@@ -1,0 +1,48 @@
+{
+  "id": "07-toggle",
+  "name": "번갈아",
+  "mechanic": "토글: 스위치가 지나갈 때마다 반대편으로 넘어가게 해서 두 통에 번갈아 담는다.",
+  "w": 8,
+  "h": 9,
+  "queue": [
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "left" },
+    { "color": "blue", "inject": "left" },
+    { "color": "red", "inject": "left" },
+    { "color": "red", "inject": "left" }
+  ],
+  "bins": [
+    { "red": 1, "blue": 1 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 2, "blue": 1 }
+  ],
+  "allowed": {
+    "minos": ["O-empty", "I-empty"],
+    "parts": ["switch", "sensor", "motor", "gear"]
+  },
+  "budget": 19,
+  "fixed": {
+    "minos": [
+      { "id": "J-tube", "r": 0, "x": 0, "y": 2 },
+      { "id": "I-tube", "r": 1, "x": 1, "y": 3 },
+      { "id": "L-tube", "r": 2, "x": 0, "y": 5 },
+      { "id": "J-tube", "r": 2, "x": 4, "y": 5 },
+      { "id": "O-empty", "r": 0, "x": 1, "y": 4 }
+    ],
+    "parts": []
+  },
+  "solution": {
+    "minos": [
+      { "id": "O-empty", "r": 0, "x": 4, "y": 4 }
+    ],
+    "parts": [
+      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "A" },
+      { "x": 4, "y": 6, "type": "sensor" },
+      { "x": 4, "y": 5, "type": "motor", "dir": "cw" },
+      { "x": 2, "y": 6, "type": "sensor" },
+      { "x": 2, "y": 5, "type": "motor", "dir": "ccw" },
+      { "x": 3, "y": 5, "type": "gear" }
+    ]
+  }
+}

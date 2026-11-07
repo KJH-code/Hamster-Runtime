@@ -3,6 +3,7 @@ import { MINOS, PIECE_ORDER } from '../src/data/minos';
 import { buildShape, rotateShape } from '../src/core/mino';
 import { srsPiece } from '../src/core/srs';
 import { E, N, S, W } from '../src/core/types';
+import { PRICES } from '../src/data/prices';
 import { RULE_MINOS as M } from './fixtures/minos';
 
 const coords = (cs: { x: number; y: number }[]) =>
@@ -68,5 +69,11 @@ describe('회전', () => {
       const s = buildShape(d);
       expect(coords(rotateShape(s, 4))).toBe(coords(s));
     }
+  });
+});
+
+describe('가격표', () => {
+  it('모든 미노에 가격이 있다', () => {
+    for (const d of MINOS) expect(PRICES.minos[d.id], d.id).toBeTypeOf('number');
   });
 });

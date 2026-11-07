@@ -8,8 +8,11 @@ import { PART_NAMES } from '../core/parts';
 import { binCount, type Dir, type PartType } from '../core/types';
 import { MINOS, PIECE_ORDER } from '../data/minos';
 import { canvasSize, COLORS, render } from './render';
+import type { Level } from '../core/level';
+import { fixedUids, levelModeKey, minoKey as placedKey, renderLevelPanel, saveReference, type SandboxState } from './levelEditor';
+import { sizeCanvas, type Screen } from './runner';
 
-type Mode = 'mino' | 'part' | 'queue';
+type Mode = 'mino' | 'part' | 'queue' | 'level';
 const PARTS: { type: PartType; dir?: Dir; label: string }[] = [
   { type: 'sensor', label: '센서' },
   { type: 'gear', label: '기어' },
@@ -29,8 +32,13 @@ const STATUS_TEXT: Record<Status, string> = {
 };
 const STEP_MS = 150;
 
-export function startApp(root: HTMLElement) {
-  const ed = new Editor();
+export function startSandbox(
+  root: HTMLElement,
+  st: SandboxState,
+  onExit: () => void,
+  onTest: (level: Level) => void,
+): Screen {
+  const ed = st.ed;
   let mode: Mode = 'mino';
   let lastEditMode: 'mino' | 'part' = 'mino';
   let shape = 0; // PIECE_ORDER 인덱스
@@ -63,14 +71,16 @@ export function startApp(root: HTMLElement) {
   left.append(modeBar);
   const canvas = document.createElement('canvas');
   canvas.className = 'board';
-  const [cw, ch] = canvasSize(ed.board);
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = cw * dpr;
-  canvas.height = ch * dpr;
-  canvas.style.aspectRatio = `${cw} / ${ch}`;
-  canvas.style.maxWidth = `${cw}px`;
-  const ctx = canvas.getContext('2d')!;
-  ctx.scale(dpr, dpr);
+  let dims = '';
+  let ctx!: CanvasRenderingContext2D;
+  const fitCanvas = () => {
+    const d = `${ed.board.w}x${ed.board.h}`;
+    if (d === dims) return;
+    dims = d;
+    const [cw, ch] = canvasSize(ed.board);
+    ctx = sizeCanvas(canvas, cw, ch);
+  };
+  fitCanvas();
   left.append(canvas);
   const msg = el('div', 'status');
   left.append(msg);
@@ -79,7 +89,9 @@ export function startApp(root: HTMLElement) {
   const keysBox = el('div', 'keys');
   const queueBox = el('div', 'queue');
   const tallyBox = el('div', 'tally');
-  panel.append(el('h1', '', 'Hamster Runtime · 샌드박스'), selBox, el('h2', '', '키'), keysBox, el('h2', '', '대기열 (Tab)'), queueBox, el('h2', '', '결과'), tallyBox);
+  const levelBox = el('div', '');
+  const levelHead = el('h2', '', '레벨 설정 (L)');
+  panel.append(el('h1', '', 'Hamster Runtime · 샌드박스'), el('div', 'dim', 'Esc 레벨 목록 · L 레벨 에디터'), selBox, el('h2', '', '키'), keysBox, levelHead, levelBox, el('h2', '', '대기열 (Tab)'), queueBox, el('h2', '', '결과'), tallyBox);
 
   // ---------- 상태 헬퍼 ----------
   const variantsOf = (p: string) => MINOS.filter((d) => d.piece === p);
@@ -108,10 +120,11 @@ export function startApp(root: HTMLElement) {
   }
 
   // ---------- 키 ----------
-  window.addEventListener('keydown', (e) => {
+  function key(e: KeyboardEvent) {
     const k = e.key;
     const lower = k.length === 1 ? k.toLowerCase() : k;
     const ctrl = e.ctrlKey || e.metaKey;
+    if (k === 'Escape') return handled(e, onExit);
     if (ctrl && lower === 'z' && !e.shiftKey) return handled(e, () => (ed.undo() ? (resetRun(), say('되돌림')) : say('되돌릴 것 없음')));
     if (ctrl && (lower === 'y' || (lower === 'z' && e.shiftKey))) return handled(e, () => (ed.redo() ? (resetRun(), say('다시 함')) : say('다시 할 것 없음')));
     if (ctrl) return;
@@ -123,17 +136,49 @@ export function startApp(root: HTMLElement) {
       });
     }
     if (k === 'Tab') return handled(e, () => (mode = mode === 'queue' ? lastEditMode : 'queue'));
+    if (lower === 'l') return handled(e, () => (mode = mode === 'level' ? lastEditMode : 'level'));
+    if (mode === 'level') {
+      if (lower === 'p') return handled(e, () => (saveReference(st), say(st.result)));
+      if (lower === 't') return handled(e, () => (st.saved ? onTest(st.saved) : say('먼저 P 로 저장해서 검증하세요')));
+      const r = levelModeKey(st, e);
+      if (r !== null) return handled(e, () => (r ? say(r) : (resetRun(), say(''))));
+      return;
+    }
     if (lower === 'r') return handled(e, toggleRun);
+    if (lower === 'f') return handled(e, toggleFixed);
 
     if (mode === 'mino') return minoKey(e, k, lower);
     if (mode === 'part') return partKey(e, k, lower);
     return queueKey(e, k, lower);
-  });
+  }
 
   function handled(e: KeyboardEvent, f: () => void) {
     e.preventDefault();
     f();
     refresh();
+  }
+
+  /** 레벨에 미리 박을 고정 미노·부품 지정 (F) */
+  function toggleFixed() {
+    if (mode === 'part') {
+      const i = ed.board.idx(cursor.x, cursor.y);
+      if (!ed.board.parts.has(i)) return say('이 칸에 부품이 없다');
+      if (st.fixedParts.delete(i)) return say('부품 고정 해제');
+      st.fixedParts.add(i);
+      return say('부품 고정 — 레벨에 미리 박힌다 (0원, 못 지움)');
+    }
+    const keys = new Set<string>();
+    for (const c of floatingCells()) {
+      const x = pos.x + c.x;
+      const y = pos.y + c.y;
+      const u = ed.board.inBounds(x, y) ? ed.board.owner[ed.board.idx(x, y)] : 0;
+      const p = u ? ed.board.placed.find((q) => q.uid === u) : undefined;
+      if (p) keys.add(placedKey(p));
+    }
+    if (!keys.size) return say('겹치는 미노가 없다');
+    const allFixed = [...keys].every((k) => st.fixedMinos.has(k));
+    for (const k of keys) allFixed ? st.fixedMinos.delete(k) : st.fixedMinos.add(k);
+    say(allFixed ? '미노 고정 해제' : '미노 고정 — 레벨에 미리 박힌다 (0원, 못 지움)');
   }
 
   function minoKey(e: KeyboardEvent, k: string, lower: string) {
@@ -263,13 +308,15 @@ export function startApp(root: HTMLElement) {
 
   // ---------- 패널 ----------
   function refresh() {
-    const modeName = mode === 'mino' ? '미노 모드' : mode === 'part' ? '부품 모드' : '대기열 모드';
+    cursor.x = Math.min(cursor.x, ed.board.w - 1);
+    cursor.y = Math.min(cursor.y, ed.board.h - 1);
+    const modeName = mode === 'mino' ? '미노 모드' : mode === 'part' ? '부품 모드' : mode === 'queue' ? '대기열 모드' : '레벨 설정 모드';
     modeBar.innerHTML = '';
-    for (const [m, label] of [['mino', '미노'], ['part', '부품'], ['queue', '대기열']] as const) {
+    for (const [m, label] of [['mino', '미노'], ['part', '부품'], ['queue', '대기열'], ['level', '레벨']] as const) {
       const b = el('span', 'mode' + (mode === m ? ' on' : ''), label);
       modeBar.append(b);
     }
-    modeBar.append(el('span', 'dim', `  ${modeName} · Shift 미노↔부품 · Tab 대기열`));
+    modeBar.append(el('span', 'dim', `  ${modeName} · Shift 미노↔부품 · Tab 대기열 · L 레벨`));
 
     selBox.innerHTML = '';
     if (mode === 'mino') {
@@ -282,18 +329,25 @@ export function startApp(root: HTMLElement) {
       selBox.append(el('div', 'dim', PARTS.map((p, i) => `${i + 1}:${p.label}`).join('  ')));
       const here = ed.board.partAt(cursor.x, cursor.y);
       if (here) selBox.append(el('div', 'dim', `이 칸: ${PART_NAMES[here.type]}${here.type === 'switch' ? ` (시작 ${here.start})` : ''}`));
-    } else {
+    } else if (mode === 'queue') {
       selBox.append(el('div', '', `대기열 ${ed.queue.length}마리 · 선택 ${qSel + 1}번`));
+    } else {
+      selBox.append(el('div', '', `레벨 ${st.meta.name} (${st.meta.id}) · ${ed.board.w}×${ed.board.h}`));
+      selBox.append(el('div', 'dim', `고정 미노 ${fixedUids(st).size} · 고정 부품 ${st.fixedParts.size}`));
     }
+    levelHead.hidden = levelBox.hidden = mode !== 'level';
+    if (mode === 'level') renderLevelPanel(st, levelBox);
 
     keysBox.innerHTML = '';
     const rows: [string, string][] =
       mode === 'mino'
-        ? [['1~7', '모양'], ['Q / E', '변형(튜브/빈) 순환'], ['방향키', '미노 이동'], ['X / Z', '회전 (시계/반시계)'], ['Space / Enter', '놓기'], ['Delete', '겹치는 미노 제거']]
+        ? [['1~7', '모양'], ['Q / E', '변형(튜브/빈) 순환'], ['방향키', '미노 이동'], ['X / Z', '회전 (시계/반시계)'], ['Space / Enter', '놓기'], ['Delete', '겹치는 미노 제거'], ['F', '겹치는 미노 고정(레벨용)']]
         : mode === 'part'
-          ? [['1~6', '부품'], ['방향키', '칸 커서 이동'], ['Space / Enter', '부품 놓기'], ['X / Z', '스위치 공통 갈래 돌리기'], ['A / B / C', '스위치 시작 상태'], ['Delete', '부품 제거 (없으면 미노)']]
-          : [['↑ / ↓', '햄스터 선택'], ['← / →', '투입구 왼/오'], ['1 / 2', '색 빨강/파랑'], ['Space / Enter', '선택 뒤에 추가'], ['Delete', '삭제']];
-    rows.push(['Shift', '미노 ↔ 부품 모드'], ['Tab', '대기열 모드'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시 하기'], ['R', '실행 / 리셋']);
+          ? [['1~6', '부품'], ['방향키', '칸 커서 이동'], ['Space / Enter', '부품 놓기'], ['X / Z', '스위치 공통 갈래 돌리기'], ['A / B / C', '스위치 시작 상태'], ['Delete', '부품 제거 (없으면 미노)'], ['F', '부품 고정(레벨용)']]
+          : mode === 'queue'
+            ? [['↑ / ↓', '햄스터 선택'], ['← / →', '투입구 왼/오'], ['1 / 2', '색 빨강/파랑'], ['Space / Enter', '선택 뒤에 추가'], ['Delete', '삭제']]
+            : [['↑ / ↓', '항목 고르기'], ['← / →', '숫자 바꾸기'], ['Space', '사용 가능 켜고 끄기'], ['Enter', '글자 넣기'], ['P', '현재 배치를 참조 풀이로 저장'], ['T', '저장한 레벨 시험 플레이']];
+    rows.push(['Shift', '미노 ↔ 부품 모드'], ['Tab', '대기열 모드'], ['L', '레벨 설정 모드'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시 하기'], ['R', '실행 / 리셋 (레벨 모드 밖)'], ['Esc', '레벨 목록']);
     for (const [key, what] of rows) {
       const r = el('div', 'krow');
       r.append(el('kbd', '', key), el('span', '', what));
@@ -326,7 +380,9 @@ export function startApp(root: HTMLElement) {
 
   // ---------- 루프 ----------
   let last = performance.now();
+  let alive = true;
   function frame(t: number) {
+    if (!alive) return;
     const dt = Math.min(0.1, (t - last) / 1000);
     last = t;
     if (running && run && !run.done && t >= nextStepAt) {
@@ -360,7 +416,9 @@ export function startApp(root: HTMLElement) {
     }
     const pressed = new Set<string>();
     for (const [k, until] of pressedUntil) if (until > t) pressed.add(k);
+    fitCanvas();
     render(ctx, {
+      fixedUids: fixedUids(st),
       board: ed.board,
       links,
       switchState: (x, y) => sim?.switchStateAt(x, y) ?? ed.board.partAt(x, y)?.start,
@@ -385,7 +443,9 @@ export function startApp(root: HTMLElement) {
 
   // 테스트 훅 (Playwright 검증용)
   (window as unknown as { __hamster: unknown }).__hamster = {
+    screen: 'sandbox',
     ed,
+    st,
     get run() {
       return run;
     },
@@ -397,6 +457,12 @@ export function startApp(root: HTMLElement) {
     },
     get cursor() {
       return { ...cursor };
+    },
+  };
+  return {
+    key,
+    dispose() {
+      alive = false;
     },
   };
 }
