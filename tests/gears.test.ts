@@ -125,3 +125,21 @@ describe('홀수 고리', () => {
     expect(o.odd[0]).toBe(false);
   });
 });
+
+describe('4갈래 스위치 (갈래 3개: A/B/C)', () => {
+  const sys = line(3); // 0 모터, 2 스위치 (같은 방향)
+  const three = new Map([[2, 3]]);
+  it('시계: A→B, B→C', () => {
+    expect(drive(sys, D([0, 1]), new Map([[2, 'A' as SwitchState]]), none, three).switches.get(2)).toBe('B');
+    expect(drive(sys, D([0, 1]), new Map([[2, 'B' as SwitchState]]), none, three).switches.get(2)).toBe('C');
+  });
+  it('C 에서 시계 = 거부 → 잠김', () => {
+    const r = drive(sys, D([0, 1]), new Map([[2, 'C' as SwitchState]]), none, three);
+    expect(r.switches.get(2)).toBe('C');
+    expect(r.newlyLocked).toEqual([0]);
+  });
+  it('반시계: C→B, A 에서는 거부', () => {
+    expect(drive(sys, D([0, -1]), new Map([[2, 'C' as SwitchState]]), none, three).switches.get(2)).toBe('B');
+    expect(drive(sys, D([0, -1]), new Map([[2, 'A' as SwitchState]]), none, three).newlyLocked).toEqual([0]);
+  });
+});
