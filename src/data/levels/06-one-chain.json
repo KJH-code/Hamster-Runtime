@@ -5,180 +5,52 @@
   "w": 12,
   "h": 10,
   "queue": [
-    {
-      "color": "blue",
-      "inject": "right"
-    },
-    {
-      "color": "red",
-      "inject": "right"
-    },
-    {
-      "color": "red",
-      "inject": "left"
-    },
-    {
-      "color": "blue",
-      "inject": "right"
-    },
-    {
-      "color": "blue",
-      "inject": "left"
-    }
+    { "color": "blue", "inject": "right" },
+    { "color": "red", "inject": "right" },
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "right" },
+    { "color": "blue", "inject": "left" }
   ],
   "bins": [
-    {
-      "red": 0,
-      "blue": 1
-    },
-    {
-      "red": 0,
-      "blue": 0
-    },
-    {
-      "red": 1,
-      "blue": 0
-    },
-    {
-      "red": 1,
-      "blue": 1
-    },
-    {
-      "red": 0,
-      "blue": 0
-    },
-    {
-      "red": 0,
-      "blue": 1
-    }
+    { "red": 0, "blue": 1 },
+    { "red": 0, "blue": 0 },
+    { "red": 1, "blue": 0 },
+    { "red": 1, "blue": 1 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 1 }
   ],
   "allowed": {
-    "minos": [
-      "I-empty",
-      "O-empty"
-    ],
-    "parts": [
-      "switch",
-      "sensor",
-      "motor",
-      "gear"
-    ]
+    "minos": ["I-empty", "O-empty"],
+    "parts": ["switch", "sensor", "motor", "gear"]
   },
   "budget": 22,
   "fixed": {
     "minos": [
-      {
-        "id": "J-tube",
-        "r": 0,
-        "x": 0,
-        "y": 2
-      },
-      {
-        "id": "I-tube",
-        "r": 1,
-        "x": 1,
-        "y": 3
-      },
-      {
-        "id": "L-tube",
-        "r": 2,
-        "x": 0,
-        "y": 5
-      },
-      {
-        "id": "I-tube",
-        "r": 1,
-        "x": 2,
-        "y": 6
-      },
-      {
-        "id": "L-tube",
-        "r": 0,
-        "x": 9,
-        "y": 2
-      },
-      {
-        "id": "I-tube",
-        "r": 1,
-        "x": 6,
-        "y": 3
-      },
-      {
-        "id": "J-tube",
-        "r": 2,
-        "x": 9,
-        "y": 5
-      },
-      {
-        "id": "I-tube",
-        "r": 1,
-        "x": 5,
-        "y": 6
-      }
+      { "id": "J-tube", "r": 0, "x": 0, "y": 2 },
+      { "id": "I-tube", "r": 1, "x": 1, "y": 3 },
+      { "id": "L-tube", "r": 2, "x": 0, "y": 5 },
+      { "id": "I-tube", "r": 1, "x": 2, "y": 6 },
+      { "id": "L-tube", "r": 0, "x": 9, "y": 2 },
+      { "id": "I-tube", "r": 1, "x": 6, "y": 3 },
+      { "id": "J-tube", "r": 2, "x": 9, "y": 5 },
+      { "id": "I-tube", "r": 1, "x": 5, "y": 6 }
     ],
     "parts": []
   },
   "solution": {
     "minos": [
-      {
-        "id": "I-empty",
-        "r": 1,
-        "x": 3,
-        "y": 6
-      },
-      {
-        "id": "I-empty",
-        "r": 1,
-        "x": 4,
-        "y": 6
-      }
+      { "id": "I-empty", "r": 1, "x": 3, "y": 6 },
+      { "id": "I-empty", "r": 1, "x": 4, "y": 6 }
     ],
     "parts": [
-      {
-        "x": 3,
-        "y": 6,
-        "type": "switch",
-        "common": "N",
-        "start": "A"
-      },
-      {
-        "x": 8,
-        "y": 6,
-        "type": "switch",
-        "common": "N",
-        "start": "B"
-      },
-      {
-        "x": 4,
-        "y": 7,
-        "type": "sensor"
-      },
-      {
-        "x": 5,
-        "y": 7,
-        "type": "motor",
-        "dir": "ccw"
-      },
-      {
-        "x": 5,
-        "y": 6,
-        "type": "gear"
-      },
-      {
-        "x": 4,
-        "y": 6,
-        "type": "gear"
-      },
-      {
-        "x": 6,
-        "y": 6,
-        "type": "gear"
-      },
-      {
-        "x": 7,
-        "y": 6,
-        "type": "gear"
-      }
+      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "A" },
+      { "x": 8, "y": 6, "type": "switch", "common": "N", "start": "B" },
+      { "x": 4, "y": 7, "type": "sensor" },
+      { "x": 5, "y": 7, "type": "motor", "dir": "ccw" },
+      { "x": 5, "y": 6, "type": "gear" },
+      { "x": 4, "y": 6, "type": "gear" },
+      { "x": 6, "y": 6, "type": "gear" },
+      { "x": 7, "y": 6, "type": "gear" }
     ]
   }
 }

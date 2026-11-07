@@ -109,3 +109,19 @@ describe('대기열 편집', () => {
     expect(ed.queueRemove(5).ok).toBe(false);
   });
 });
+
+describe('판 크기', () => {
+  it('들어가는 미노만 남고, 되돌리면 원래 크기', () => {
+    const ed = new Editor(10, 14, M);
+    ed.placeMino('O-empty', 0, 0, 0);
+    ed.placeMino('O-empty', 0, 8, 12); // (8..9, 12..13)
+    ed.placePart(0, 0, 'gear');
+    expect(ed.resize(6, 8).ok).toBe(true);
+    expect([ed.board.w, ed.board.h]).toEqual([6, 8]);
+    expect(ed.board.placed.length).toBe(1);
+    expect(ed.board.partAt(0, 0)?.type).toBe('gear');
+    expect(ed.undo()).toBe(true);
+    expect([ed.board.w, ed.board.h]).toEqual([10, 14]);
+    expect(ed.board.placed.length).toBe(2);
+  });
+});

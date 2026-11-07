@@ -5,71 +5,32 @@
   "w": 6,
   "h": 7,
   "queue": [
-    {
-      "color": "red",
-      "inject": "left"
-    },
-    {
-      "color": "blue",
-      "inject": "left"
-    },
-    {
-      "color": "blue",
-      "inject": "left"
-    }
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "left" },
+    { "color": "blue", "inject": "left" }
   ],
   "bins": [
-    {
-      "red": 0,
-      "blue": 0
-    },
-    {
-      "red": 1,
-      "blue": 2
-    },
-    {
-      "red": 0,
-      "blue": 0
-    }
+    { "red": 0, "blue": 0 },
+    { "red": 1, "blue": 2 },
+    { "red": 0, "blue": 0 }
   ],
   "allowed": {
     "minos": [],
-    "parts": [
-      "plug"
-    ]
+    "parts": ["plug"]
   },
   "budget": 2,
   "fixed": {
     "minos": [
-      {
-        "id": "J-tube",
-        "r": 0,
-        "x": 0,
-        "y": 0
-      },
-      {
-        "id": "I-tube",
-        "r": 1,
-        "x": 1,
-        "y": 1
-      },
-      {
-        "id": "L-tube",
-        "r": 3,
-        "x": 4,
-        "y": 1
-      }
+      { "id": "J-tube", "r": 0, "x": 0, "y": 0 },
+      { "id": "I-tube", "r": 1, "x": 1, "y": 1 },
+      { "id": "L-tube", "r": 3, "x": 4, "y": 1 }
     ],
     "parts": []
   },
   "solution": {
     "minos": [],
     "parts": [
-      {
-        "x": 4,
-        "y": 1,
-        "type": "plug"
-      }
+      { "x": 4, "y": 1, "type": "plug" }
     ]
   }
 }

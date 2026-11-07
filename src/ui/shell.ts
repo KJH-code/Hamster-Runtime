@@ -7,11 +7,13 @@ import { startLevel } from './level';
 import { startMenu } from './menu';
 import type { Screen } from './runner';
 import { isUnlocked } from './storage';
+import { newSandboxState } from './levelEditor';
 
 export function startShell(root: HTMLElement) {
   let screen: Screen | null = null;
   let menuSel = 0;
   const ids = LEVELS.map((l) => l.id);
+  const sandboxState = newSandboxState();
   const show = (s: Screen) => {
     screen?.dispose();
     screen = s;
@@ -24,7 +26,7 @@ export function startShell(root: HTMLElement) {
   }
   function sandbox() {
     menuSel = LEVELS.length;
-    show(startSandbox(root, menu));
+    show(startSandbox(root, sandboxState, menu, (level) => show(startLevel(root, { level, record: false, onExit: sandbox }))));
   }
   window.addEventListener('keydown', (e) => screen?.key(e));
   menu();

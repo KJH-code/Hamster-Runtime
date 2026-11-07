@@ -14,7 +14,10 @@
     { "red": 0, "blue": 0 },
     { "red": 2, "blue": 1 }
   ],
-  "allowed": { "minos": ["I-tube", "O-tube", "L-tube", "J-tube"], "parts": [] },
+  "allowed": {
+    "minos": ["I-tube", "O-tube", "L-tube", "J-tube"],
+    "parts": []
+  },
   "budget": 5,
   "solution": {
     "minos": [

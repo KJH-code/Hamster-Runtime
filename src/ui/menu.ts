@@ -22,7 +22,7 @@ export function startMenu(root: HTMLElement, levels: Level[], selected: number, 
     levels.forEach((lv, i) => {
       const open = isUnlocked(ids, i);
       const best = bestPrice(lv.id);
-      const row = el('div', 'lrow' + (i === sel ? ' sel' : '') + (open ? '' : ' locked'));
+      const row = el('div', 'lrow' + (i === sel ? ' pick' : '') + (open ? '' : ' locked'));
       row.append(
         el('span', 'ln', `${i + 1}`),
         el('span', 'lname', open ? lv.name : '🔒 잠김'),
@@ -30,7 +30,7 @@ export function startMenu(root: HTMLElement, levels: Level[], selected: number, 
       );
       list.append(row);
     });
-    const sb = el('div', 'lrow' + (sel === levels.length ? ' sel' : ''));
+    const sb = el('div', 'lrow' + (sel === levels.length ? ' pick' : ''));
     sb.append(el('span', 'ln', '·'), el('span', 'lname', '샌드박스 · 레벨 에디터'), el('span', 'lbest', ''));
     list.append(sb);
     box.append(list, el('div', 'status', message || ' '));

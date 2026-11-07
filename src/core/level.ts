@@ -199,7 +199,14 @@ export function serializeLevel(level: Level): string {
   };
   if (level.fixed) out.fixed = level.fixed;
   if (level.solution) out.solution = level.solution;
-  return JSON.stringify(out, null, 2) + '\n';
+  return compactJson(out) + '\n';
+}
+
+/** 들여쓴 JSON 이되, 안에 객체·배열이 없는 작은 객체·배열은 한 줄로 */
+function compactJson(v: unknown): string {
+  return JSON.stringify(v, null, 2)
+    .replace(/\{\n\s+([^{}[\]]*?)\n\s+\}/g, (_, body: string) => `{ ${body.split(/,\n\s+/).join(', ')} }`)
+    .replace(/\[\n\s+([^{}[\]]*?)\n\s+\]/g, (_, body: string) => `[${body.split(/,\n\s+/).join(', ')}]`);
 }
 
 // ---------------- 판 만들기 ----------------
