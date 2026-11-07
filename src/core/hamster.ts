@@ -35,6 +35,8 @@ export interface SimOptions {
   inject: Inject;
   /** 스위치 시작 상태. 키 = 보드 칸 인덱스(y*w+x). 없으면 A */
   switches?: Map<number, SwitchState>;
+  /** 이미 잠긴 연결 요소 번호 (같은 보드에서 다음 햄스터를 넣을 때 상태를 이어받는 용도) */
+  locked?: Set<number>;
 }
 
 export class Simulation {
@@ -75,6 +77,7 @@ export class Simulation {
       if (board.at(p.x, p.y)!.kind === 'switch')
         this.switches.set(node, opts.switches?.get(board.idx(p.x, p.y)) ?? 'A');
     });
+    if (opts.locked) this.locked = new Set(opts.locked);
     this.x = opts.inject === 'left' ? 0 : board.w - 1;
     this.y = -1; // 판 위에서 수직 낙하 시작
     this.seen.add(this.key());
