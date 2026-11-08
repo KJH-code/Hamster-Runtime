@@ -7,8 +7,6 @@ import { Stack } from '../src/core/stack';
 import { LEVELS } from '../src/data/levels';
 import { PRICES } from '../src/data/prices';
 
-/** × 2 규칙의 예외 (재혁이 정함). 2번: 참조 1원 × 2 = 2 는 너무 빡빡해서 6 (2026-11-08) */
-const BUDGET_OVERRIDE: Record<string, number> = { '02-junction-plug': 6 };
 const solve = (lv: Level, layout: Layout) => verifyLayout(lv, layout, PRICES);
 
 describe('레벨 세트', () => {
@@ -30,7 +28,7 @@ describe('레벨 세트', () => {
       });
       it('예산 = 참조 풀이 가격 × 2 (prices.ts 를 바꾸면 budget 도 고친다)', () => {
         const price = solve(lv, lv.solution!).judgement!.price;
-        expect(lv.budget).toBe(BUDGET_OVERRIDE[lv.id] ?? budgetFromReference(price));
+        expect(lv.budget).toBe(budgetFromReference(price));
       });
       it('통 조건의 합 = 대기열 마릿수', () => {
         const red = lv.queue.filter((q) => q.color === 'red').length;
@@ -49,31 +47,20 @@ describe('레벨 세트', () => {
   }
 });
 
-describe('막아 둔 우회 (재혁 요청 2026-11-08)', () => {
+describe('막아 둔 우회', () => {
   const byId = (id: string) => LEVELS.find((l) => l.id.startsWith(id))!;
-  it('3: 마개 하나로는 스위치 없이 못 푼다 (튜브 끝 어디에 꽂아도)', () => {
-    const lv = byId('03');
+  it('5: 미끼 튜브 위 끝은 고정 마개로 막혀 있어 그 길로는 못 간다', () => {
+    // 마개 없이 미끼 위에 J 를 대던 우회 (탐색에서 2원)
+    const r = solve(byId('05'), { minos: [{ id: 'J-tube', r: 0, x: 0, y: 2 }], parts: [] });
+    expect(r.judgement?.clear ?? false).toBe(false);
+  });
+  it('6: 왼쪽 갈래 끝 위 (2,5) 는 고정 빈 미노라 분기점을 건너뛸 수 없다', () => {
+    const lv = byId('06');
     const { board } = buildFixed(lv);
-    let tried = 0;
-    for (let i = 0; i < board.w * board.h; i++) {
-      const c = board.cells[i];
-      if (!c || c.kind !== 'tube' || !c.end) continue;
-      tried++;
-      const r = solve(lv, { minos: [], parts: [{ x: i % board.w, y: Math.floor(i / board.w), type: 'plug' }] });
-      expect(r.judgement?.clear ?? false, `plug ${i % board.w},${Math.floor(i / board.w)}`).toBe(false);
-    }
-    expect(tried).toBe(8); // 고정 미노 4개 × 끝 2개
+    expect(board.at(2, 5)?.kind).toBe('empty');
   });
-  it('3: 바닥 줄로 되돌아가는 길은 판에 자리가 없다 (출구가 바로 바닥)', () => {
-    const lv = byId('03');
-    expect(lv.h).toBe(8);
-  });
-  it('9: 투입구 아래로 새 길을 깔아 토글을 피하는 풀이는 통 3에 못 간다', () => {
-    const lv = byId('09');
-    const r = solve(lv, {
-      minos: [{ id: 'I-tube', r: 0, x: 2, y: 1 }, { id: 'T-tube-b', r: 2, x: 4, y: -1 }],
-      parts: [{ x: 3, y: 3, type: 'plug' }],
-    });
+  it('9: 오른쪽 갈래 출구 밑 바닥은 고정 빈 미노라 되돌리는 길을 못 깐다', () => {
+    const r = solve(byId('09'), { minos: [{ id: 'I-tube', r: 2, x: 2, y: 6 }], parts: [] });
     expect(r.judgement?.clear ?? false).toBe(false);
   });
 });

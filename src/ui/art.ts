@@ -509,19 +509,21 @@ export function renderArt(ctx: CanvasRenderingContext2D, t: Theme, v: ArtView) {
     ctx.roundRect(bx + 4, by + 6 - bounce, w - 8, BIN_ROWS * s - 10, [4, 4, 14, 14]);
     ctx.fill();
     ctx.stroke();
+    const narrow = w < BIN_WIDTH * s;
     ctx.fillStyle = t.text;
     ctx.font = '11px system-ui, sans-serif';
-    ctx.fillText(goal ? `목표` : `통 ${i}`, bx + w / 2, by + 18 - bounce);
-    // 색별: 목도리 점 + 지금/목표
+    if (!narrow) ctx.fillText(goal ? `목표` : `통 ${i}`, bx + w / 2, by + 18 - bounce);
+    // 색별: 목도리 점 + 지금/목표 (한 칸짜리 통은 숫자만 작게)
     [0, 1].forEach((col) => {
-      const yy = by + 38 + col * 18 - bounce;
+      const yy = by + (narrow ? 22 : 38) + col * (narrow ? 22 : 18) - bounce;
       ctx.fillStyle = t.scarf[col]!;
       ctx.beginPath();
-      ctx.arc(bx + w / 2 - 22, yy, 6, 0, Math.PI * 2);
+      ctx.arc(narrow ? bx + w / 2 : bx + w / 2 - 22, narrow ? yy - 8 : yy, narrow ? 4 : 6, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = t.text;
-      ctx.font = 'bold 13px system-ui, sans-serif';
-      ctx.fillText(goal ? `${counts[col]}/${goal[col]}` : String(counts[col]), bx + w / 2 + 6, yy + 1);
+      ctx.font = narrow ? 'bold 10px system-ui, sans-serif' : 'bold 13px system-ui, sans-serif';
+      const txt = goal ? `${counts[col]}/${goal[col]}` : String(counts[col]);
+      ctx.fillText(txt, narrow ? bx + w / 2 : bx + w / 2 + 6, narrow ? yy + 3 : yy + 1);
     });
   }
 

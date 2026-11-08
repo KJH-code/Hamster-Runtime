@@ -1,15 +1,16 @@
 {
-  "id": "01-first-tube",
-  "name": "첫 튜브",
-  "mechanic": "미노의 열린 끝끼리 맞닿으면 튜브가 저절로 이어진다.",
-  "w": 6,
-  "h": 6,
+  "id": "01-first-path",
+  "name": "첫 길",
+  "mechanic": "미노를 떨어뜨려 쌓고, 튜브 끝끼리 맞닿게 해서 투입구에서 통까지 길을 잇는다.",
+  "w": 7,
+  "h": 8,
   "queue": [
     { "color": "red", "inject": "left" },
     { "color": "blue", "inject": "left" },
     { "color": "red", "inject": "left" }
   ],
   "bins": [
+    { "red": 0, "blue": 0 },
     { "red": 0, "blue": 0 },
     { "red": 0, "blue": 0 },
     { "red": 2, "blue": 1 }
@@ -21,8 +22,8 @@
   "budget": 8,
   "solution": {
     "minos": [
-      { "id": "J-tube", "r": 0, "x": 0, "y": 4 },
-      { "id": "O-tube", "r": 2, "x": 3, "y": 4 }
+      { "id": "L-tube", "r": 1, "x": -1, "y": 5 },
+      { "id": "I-tube", "r": 0, "x": 2, "y": 6 }
     ],
     "parts": []
   }

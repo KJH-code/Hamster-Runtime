@@ -2,7 +2,7 @@
   "id": "09-lock",
   "name": "고장 내기",
   "mechanic": "끝 상태의 스위치를 같은 쪽으로 더 밀면 회전이 거부되고, 맞물린 기어 줄 전체가 잠긴다.",
-  "w": 7,
+  "w": 8,
   "h": 9,
   "queue": [
     { "color": "red", "inject": "left" },
@@ -11,39 +11,43 @@
     { "color": "red", "inject": "left" }
   ],
   "bins": [
+    { "red": 2, "blue": 2 },
     { "red": 0, "blue": 0 },
     { "red": 0, "blue": 0 },
-    { "red": 0, "blue": 0 },
-    { "red": 2, "blue": 2 }
+    { "red": 0, "blue": 0 }
   ],
   "allowed": {
     "minos": ["I-tube", "I-empty", "O-tube", "O-empty", "T-tube-a", "T-tube-b", "T-empty", "S-tube", "S-empty", "Z-tube", "Z-empty", "L-tube", "L-empty", "J-tube", "J-empty"],
     "parts": ["sensor", "gear", "motor", "switch", "plug"]
   },
-  "budget": 10,
+  "budget": 12,
   "fixed": {
     "minos": [
-      { "id": "J-tube", "r": 0, "x": 0, "y": 2 },
-      { "id": "I-tube", "r": 1, "x": 1, "y": 3 },
       { "id": "L-tube", "r": 2, "x": 0, "y": 5 },
-      { "id": "J-tube", "r": 2, "x": 4, "y": 5 },
+      { "id": "J-tube", "r": 2, "x": 3, "y": 5 },
       { "id": "O-empty", "r": 0, "x": 1, "y": 4 },
-      { "id": "O-empty", "r": 0, "x": 4, "y": 4 }
+      { "id": "L-empty", "r": 2, "x": 0, "y": 2 },
+      { "id": "I-tube", "r": 1, "x": 1, "y": 2 },
+      { "id": "J-tube", "r": 0, "x": 0, "y": 1 },
+      { "id": "O-empty", "r": 0, "x": 4, "y": 4 },
+      { "id": "I-empty", "r": 0, "x": 4, "y": 7 }
     ],
     "parts": [
-      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "B" },
+      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "A" },
       { "x": 4, "y": 6, "type": "sensor" },
       { "x": 4, "y": 5, "type": "motor", "dir": "ccw" },
-      { "x": 2, "y": 6, "type": "sensor" },
-      { "x": 2, "y": 5, "type": "motor", "dir": "cw" },
-      { "x": 3, "y": 5, "type": "gear" }
+      { "x": 3, "y": 5, "type": "gear" },
+      { "x": 1, "y": 6, "type": "sensor" },
+      { "x": 1, "y": 5, "type": "motor", "dir": "ccw" },
+      { "x": 2, "y": 5, "type": "gear" }
     ]
   },
   "solution": {
     "minos": [],
     "parts": [
-      { "x": 3, "y": 4, "type": "sensor" },
-      { "x": 4, "y": 4, "type": "motor", "dir": "ccw" }
+      { "x": 3, "y": 3, "type": "sensor" },
+      { "x": 2, "y": 3, "type": "motor", "dir": "ccw" },
+      { "x": 2, "y": 4, "type": "gear" }
     ]
   }
 }
