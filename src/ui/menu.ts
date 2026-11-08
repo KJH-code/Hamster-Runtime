@@ -4,8 +4,8 @@
 import type { Level } from '../core/level';
 import { E, W } from '../core/types';
 import { drawHamster, THEME, tubeCell } from './art';
-import { el, sizeCanvas, type Screen } from './runner';
-import { bestPrice, isUnlocked } from './storage';
+import { copyLink, el, shareUrl, sizeCanvas, type Screen } from './runner';
+import { bestCode, bestPrice, isUnlocked } from './storage';
 
 const COLS = 5;
 
@@ -70,7 +70,8 @@ export function startMenu(root: HTMLElement, levels: Level[], selected: number, 
     sandbox.innerHTML = '';
     sandbox.append(el('div', 'lname', '샌드박스 · 레벨 에디터'), el('div', 'lbest', '자유 배치, 직접 레벨 만들기'));
     help.innerHTML = '';
-    for (const [k, w] of [['← → ↑ ↓', '고르기'], ['Enter', '열기']] as const) {
+    const canShare = sel < levels.length && bestCode(levels[sel]!.id) !== undefined;
+    for (const [k, w] of [['← → ↑ ↓', '고르기'], ['Enter', '열기'], ...(canShare ? ([['C', '내 최저 풀이 링크 복사']] as const) : [])] as const) {
       const chip = el('span', 'hint');
       chip.append(el('kbd', '', k), el('span', '', w));
       help.append(chip);
@@ -92,6 +93,15 @@ export function startMenu(root: HTMLElement, levels: Level[], selected: number, 
     if (e.key === 'ArrowRight') return done(() => (sel = (sel + 1) % n));
     if (e.key === 'ArrowUp') return done(() => (sel = sel === L ? Math.min(L - 1, (Math.ceil(L / COLS) - 1) * COLS) : Math.max(0, sel - COLS)));
     if (e.key === 'ArrowDown') return done(() => (sel = sel + COLS < L ? sel + COLS : L));
+    if (e.key === 'c' || e.key === 'C')
+      return done(() => {
+        const code = sel < L ? bestCode(levels[sel]!.id) : undefined;
+        if (!code) return void (message = '이 레벨은 공유할 풀이가 없다 (깨면 생긴다)');
+        void copyLink(shareUrl(code)).then((how) => {
+          message = how === 'copied' ? `${sel + 1}번 최저 풀이 링크를 복사했다` : '링크 창에서 Ctrl+C 로 복사';
+          refresh();
+        });
+      });
     if (e.key === 'Enter' || e.key === ' ')
       return done(() => {
         if (sel === L) return onSandbox();

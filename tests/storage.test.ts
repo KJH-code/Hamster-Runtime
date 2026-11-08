@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { _resetForTest, bestPrice, isUnlocked, recordClear } from '../src/ui/storage';
+import { _resetForTest, bestCode, bestPrice, isUnlocked, recordClear } from '../src/ui/storage';
 
 // 테스트 환경에는 localStorage 가 없다 → 메모리로 동작하는지 (try/catch 경로)
 describe('기록 (저장소 없음)', () => {
@@ -17,5 +17,17 @@ describe('기록 (저장소 없음)', () => {
     expect([0, 1, 2].map((i) => isUnlocked(ids, i))).toEqual([true, false, false]);
     recordClear('a', 5);
     expect([0, 1, 2].map((i) => isUnlocked(ids, i))).toEqual([true, true, false]);
+  });
+});
+
+describe('최저 기록 풀이 코드', () => {
+  beforeEach(() => _resetForTest());
+  it('새 최저일 때 코드를 바꾸고, 더 비싸면 그대로', () => {
+    recordClear('a', 10, 'X');
+    expect(bestCode('a')).toBe('X');
+    recordClear('a', 12, 'Y');
+    expect(bestCode('a')).toBe('X');
+    recordClear('a', 8, 'Z');
+    expect(bestCode('a')).toBe('Z');
   });
 });

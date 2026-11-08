@@ -9,7 +9,8 @@ import { LevelPlay } from '../core/play';
 import type { Dir, PartType } from '../core/types';
 import { MINOS, PIECE_ORDER, type PieceLetter } from '../data/minos';
 import { artSize, burst, drawCelebration, hamsterIcon, renderArt, THEME, type Overlay, type Particle } from './art';
-import { el, renderHints, Runner, sizeCanvas, type Screen } from './runner';
+import { copyLink, el, renderHints, Runner, shareUrl, sizeCanvas, type Screen } from './runner';
+import { encodeShare } from '../core/share';
 import { bestPrice, recordClear } from './storage';
 import { LEVEL_TUTORIALS, Tutorial } from './tutorial';
 
@@ -44,6 +45,8 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   /** Shift 를 다른 키 없이 눌렀다 뗐을 때만 미노↔부품 (? 를 칠 때 바뀌지 않게) */
   let shiftAlone = false;
   let celebrate: { ps: Particle[]; t0: number } | null = null;
+  /** 이번에 깬 풀이의 공유 코드 */
+  let clearCode: string | null = null;
   let failUntil = 0;
   let helpOpen = false;
 
@@ -136,6 +139,14 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     if (ctrl) return;
     if (lower === 'r') return done(toggleRun);
     if (k === 'Enter' && cleared && o.onNext) return done(() => o.onNext!());
+    if (lower === 'c' && cleared && clearCode)
+      return done(() => {
+        const url = shareUrl(clearCode!);
+        void copyLink(url).then((how) => {
+          say(how === 'copied' ? '풀이 링크를 복사했다 — 카톡 등에 붙여 넣으면 친구가 그대로 볼 수 있다' : '링크 창에서 Ctrl+C 로 복사');
+          refresh();
+        });
+      });
     if (k === 'Shift') {
       if (!e.repeat) shiftAlone = true;
       return;
@@ -213,6 +224,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     if (runner) {
       runner = null;
       cleared = false;
+      clearCode = null;
       celebrate = null;
       failUntil = 0;
       return say('리셋 — 다시 고칠 수 있다');
@@ -232,11 +244,12 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       tev('clear');
       tut = null; // 깼으면 안내는 닫는다 (N 으로 다시 볼 수 있다)
       let best = '';
+      clearCode = encodeShare(lv.id, play.layout());
       if (o.record) {
-        const isNew = recordClear(lv.id, j.price);
+        const isNew = recordClear(lv.id, j.price, clearCode);
         best = isNew ? ' · 새 최저 기록!' : ` · 최저 ${bestPrice(lv.id)}`;
       }
-      say(`★ 클리어! 가격 ${j.price}${best}${o.onNext ? ' — Enter 다음 레벨' : ''} · Esc 목록`);
+      say(`★ 클리어! 가격 ${j.price}${best}${o.onNext ? ' — Enter 다음 레벨' : ''} · C 풀이 링크 복사`);
     } else {
       const why: string[] = [];
       if (j.loop) why.push('무한 루프');
@@ -250,7 +263,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   /** 지금 상황에서 쓸 키 3~4개 */
   function hintPairs(): [string, string][] {
     if (runner) {
-      if (cleared) return o.onNext ? [['Enter', '다음 레벨'], ['Esc', '목록'], ['R', '다시 고치기']] : [['Esc', '돌아가기'], ['R', '다시 고치기']];
+      if (cleared) return o.onNext ? [['Enter', '다음 레벨'], ['C', '풀이 링크 복사'], ['Esc', '목록'], ['R', '다시 고치기']] : [['C', '풀이 링크 복사'], ['Esc', '돌아가기'], ['R', '다시 고치기']];
       if (runner.run.done) return [['R', '리셋하고 고치기'], ['Esc', '목록']];
       return [['R', '멈추고 리셋']];
     }
