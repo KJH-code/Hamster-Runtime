@@ -48,3 +48,32 @@ describe('레벨 세트', () => {
     });
   }
 });
+
+describe('막아 둔 우회 (재혁 요청 2026-11-08)', () => {
+  const byId = (id: string) => LEVELS.find((l) => l.id.startsWith(id))!;
+  it('3: 마개 하나로는 스위치 없이 못 푼다 (튜브 끝 어디에 꽂아도)', () => {
+    const lv = byId('03');
+    const { board } = buildFixed(lv);
+    let tried = 0;
+    for (let i = 0; i < board.w * board.h; i++) {
+      const c = board.cells[i];
+      if (!c || c.kind !== 'tube' || !c.end) continue;
+      tried++;
+      const r = solve(lv, { minos: [], parts: [{ x: i % board.w, y: Math.floor(i / board.w), type: 'plug' }] });
+      expect(r.judgement?.clear ?? false, `plug ${i % board.w},${Math.floor(i / board.w)}`).toBe(false);
+    }
+    expect(tried).toBe(8); // 고정 미노 4개 × 끝 2개
+  });
+  it('3: 바닥 줄로 되돌아가는 길은 판에 자리가 없다 (출구가 바로 바닥)', () => {
+    const lv = byId('03');
+    expect(lv.h).toBe(8);
+  });
+  it('9: 투입구 아래로 새 길을 깔아 토글을 피하는 풀이는 통 3에 못 간다', () => {
+    const lv = byId('09');
+    const r = solve(lv, {
+      minos: [{ id: 'I-tube', r: 0, x: 2, y: 1 }, { id: 'T-tube-b', r: 2, x: 4, y: -1 }],
+      parts: [{ x: 3, y: 3, type: 'plug' }],
+    });
+    expect(r.judgement?.clear ?? false).toBe(false);
+  });
+});
