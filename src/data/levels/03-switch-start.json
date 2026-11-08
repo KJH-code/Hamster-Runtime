@@ -3,7 +3,7 @@
   "name": "선로 전환",
   "mechanic": "스위치는 분기점에 끼우는 ㄱ자 관이다. 흰 점(공통 갈래)과 직각 갈래 하나를 잇고, 시작 방향을 고른다.",
   "w": 8,
-  "h": 9,
+  "h": 8,
   "queue": [
     { "color": "red", "inject": "left" },
     { "color": "blue", "inject": "left" },
@@ -23,10 +23,10 @@
   "budget": 6,
   "fixed": {
     "minos": [
-      { "id": "J-tube", "r": 0, "x": 0, "y": 2 },
-      { "id": "I-tube", "r": 1, "x": 1, "y": 3 },
+      { "id": "J-tube", "r": 0, "x": 0, "y": 1 },
+      { "id": "I-tube", "r": 1, "x": 1, "y": 2 },
       { "id": "L-tube", "r": 2, "x": 0, "y": 5 },
-      { "id": "J-tube", "r": 2, "x": 4, "y": 5 }
+      { "id": "J-tube", "r": 2, "x": 3, "y": 5 }
     ],
     "parts": []
   },

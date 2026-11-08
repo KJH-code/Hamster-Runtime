@@ -211,6 +211,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     if (j.clear) {
       cleared = true;
       tev('clear');
+      tut = null; // 깼으면 안내는 닫는다 (N 으로 다시 볼 수 있다)
       let best = '';
       if (o.record) {
         const isNew = recordClear(lv.id, j.price);
