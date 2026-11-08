@@ -453,6 +453,15 @@ export interface ArtView {
   binBounce?: number[];
   fixedUids?: Set<number>;
   blink: boolean;
+  /** 판 위 안내: 빛나는 칸 + 말풍선 (칸 좌표) */
+  overlay?: Overlay | null;
+  /** 밀리초 (반짝임용) */
+  time?: number;
+}
+
+export interface Overlay {
+  glow: { x: number; y: number }[];
+  bubble: { text: string; keys: [string, string][]; ax: number; ay: number; below?: boolean } | null;
 }
 
 export const CELL = 40;
@@ -685,6 +694,8 @@ export function renderArt(ctx: CanvasRenderingContext2D, t: Theme, v: ArtView) {
     ctx.strokeRect(v.cursor.x * s + 2, OY + v.cursor.y * s + 2, s - 4, s - 4);
     ctx.setLineDash([]);
   }
+  if (v.overlay) drawOverlay(ctx, t, v.overlay, board, v.time ?? 0);
+
   // 햄스터
   if (v.hamster) drawHamster(ctx, t, (v.hamster.x + 0.5) * s + v.hamster.shake, OY + (v.hamster.y + 0.5) * s, s, v.hamster.color, v.hamster.squash ?? 0);
 }
@@ -703,4 +714,125 @@ export function hamsterIcon(color: number, px = 28): HTMLCanvasElement {
   ctx.scale(dpr, dpr);
   drawHamster(ctx, THEME, px / 2, px * 0.56, px * 1.15, color);
   return c;
+}
+
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let cur = '';
+  for (const w of words) {
+    const next = cur ? `${cur} ${w}` : w;
+    if (ctx.measureText(next).width > maxW && cur) {
+      lines.push(cur);
+      cur = w;
+    } else cur = next;
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+/** 판 위 안내: 빛나는 목표 칸과 말풍선 */
+export function drawOverlay(ctx: CanvasRenderingContext2D, t: Theme, o: Overlay, board: Board, time: number) {
+  const s = CELL;
+  const OY = TOP * s;
+  const pulse = 0.5 + 0.5 * Math.sin(time / 220);
+  for (const c of o.glow) {
+    if (c.y < 0) continue;
+    ctx.fillStyle = `rgba(255,225,74,${0.12 + 0.18 * pulse})`;
+    ctx.fillRect(c.x * s + 2, OY + c.y * s + 2, s - 4, s - 4);
+    ctx.strokeStyle = `rgba(255,225,74,${0.55 + 0.45 * pulse})`;
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([6, 4]);
+    ctx.lineDashOffset = -time / 60;
+    ctx.strokeRect(c.x * s + 2, OY + c.y * s + 2, s - 4, s - 4);
+    ctx.setLineDash([]);
+  }
+  const b = o.bubble;
+  if (!b) return;
+  const W = board.w * s;
+  const H = (board.h + TOP + BIN_ROWS) * s;
+  const maxW = Math.min(W - 24, 300);
+  ctx.font = 'bold 14px system-ui, sans-serif';
+  const lines = wrapText(ctx, b.text, maxW - 20);
+  ctx.font = 'bold 12px system-ui, sans-serif';
+  const chips = b.keys.map(([k, what]) => {
+    const kw = ctx.measureText(k).width + 12;
+    ctx.font = '12px system-ui, sans-serif';
+    const ww = ctx.measureText(what).width;
+    ctx.font = 'bold 12px system-ui, sans-serif';
+    return { k, what, kw, w: kw + 4 + ww };
+  });
+  const chipRow = chips.reduce((a, c) => a + c.w + 12, 0);
+  ctx.font = 'bold 14px system-ui, sans-serif';
+  const textW = Math.max(...lines.map((l) => ctx.measureText(l).width));
+  const bw = Math.min(maxW, Math.max(textW, chipRow) + 20);
+  const bh = lines.length * 19 + (chips.length ? 30 : 0) + 16;
+  const ax = b.ax * s;
+  const ay = OY + b.ay * s;
+  // 기준점 위에 두되, 자리가 없으면 아래
+  let by = ay - bh - 16;
+  let up = true;
+  if (by < 4 || b.below) {
+    by = ay + 16;
+    up = false;
+  }
+  by = Math.min(by, H - bh - 4);
+  const bx = Math.max(6, Math.min(W - bw - 6, ax - bw / 2));
+  // 그림자 + 몸통 + 꼬리
+  const bob = Math.sin(time / 300) * 2;
+  ctx.save();
+  ctx.translate(0, bob);
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath();
+  ctx.roundRect(bx + 2, by + 3, bw, bh, 12);
+  ctx.fill();
+  ctx.fillStyle = '#fff7e2';
+  ctx.strokeStyle = '#e0b84a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(bx, by, bw, bh, 12);
+  ctx.fill();
+  ctx.stroke();
+  const tx = Math.max(bx + 14, Math.min(bx + bw - 14, ax));
+  ctx.beginPath();
+  if (up) {
+    ctx.moveTo(tx - 8, by + bh - 1);
+    ctx.lineTo(ax, ay - 4);
+    ctx.lineTo(tx + 8, by + bh - 1);
+  } else {
+    ctx.moveTo(tx - 8, by + 1);
+    ctx.lineTo(ax, ay + 4);
+    ctx.lineTo(tx + 8, by + 1);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#fff7e2';
+  ctx.fillRect(tx - 7, up ? by + bh - 3 : by + 1, 14, 3);
+  // 글
+  ctx.fillStyle = '#2a2116';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.font = 'bold 14px system-ui, sans-serif';
+  lines.forEach((l, i) => ctx.fillText(l, bx + 10, by + 9 + i * 19));
+  // 키 칩
+  let cx = bx + 10;
+  const cy = by + 9 + lines.length * 19 + 4;
+  for (const c of chips) {
+    ctx.fillStyle = '#2a2f3c';
+    ctx.beginPath();
+    ctx.roundRect(cx, cy, c.kw, 20, 5);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 12px system-ui, sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(c.k, cx + 6, cy + 10);
+    ctx.fillStyle = '#5a4a33';
+    ctx.font = '12px system-ui, sans-serif';
+    ctx.fillText(c.what, cx + c.kw + 4, cy + 10);
+    cx += c.w + 12;
+  }
+  ctx.restore();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
 }

@@ -14,7 +14,6 @@ import { binCount } from '../core/types';
 import { MINOS } from '../data/minos';
 import { PRICES } from '../data/prices';
 import { el } from './runner';
-import type { Tutorial } from './tutorial';
 
 export interface SandboxState {
   ed: Editor;
@@ -26,8 +25,6 @@ export interface SandboxState {
   json: string;
   result: string;
   fieldSel: number;
-  /** 샌드박스 안내 (화면을 나갔다 와도 이어진다) */
-  tut?: Tutorial | null;
   /** 디버그용: 마지막 실패 */
   lastFail?: unknown;
 }

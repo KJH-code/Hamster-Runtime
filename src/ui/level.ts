@@ -2,13 +2,13 @@
  * 레벨 플레이 화면 — 키보드 전용. 편집은 core/play.ts, 실행은 Runner(QueueRun).
  * 화면에는 대기열 · 통 조건 · 총 가격/예산만 (케이스 목록 없음).
  */
-import { queueItems, type Level } from '../core/level';
+import { queueItems, srsCells, type Level } from '../core/level';
 import { computeLinks } from '../core/links';
 import { PART_NAMES } from '../core/parts';
 import { LevelPlay } from '../core/play';
 import type { Dir, PartType } from '../core/types';
 import { MINOS, PIECE_ORDER, type PieceLetter } from '../data/minos';
-import { artSize, hamsterIcon, renderArt, THEME } from './art';
+import { artSize, hamsterIcon, renderArt, THEME, type Overlay } from './art';
 import { el, renderHints, Runner, sizeCanvas, type Screen } from './runner';
 import { bestPrice, recordClear } from './storage';
 import { LEVEL_TUTORIALS, Tutorial } from './tutorial';
@@ -50,7 +50,6 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   const left = el('div', 'left');
   const panel = el('div', 'panel');
   root.append(left, panel);
-  const tutBox = el('div', 'tut');
   const modeBar = el('div', 'modebar');
   const canvas = document.createElement('canvas');
   canvas.className = 'board';
@@ -58,7 +57,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   const ctx = sizeCanvas(canvas, cw, ch);
   const hints = el('div', 'hints');
   const msg = el('div', 'status');
-  left.append(tutBox, modeBar, canvas, hints, msg);
+  left.append(modeBar, canvas, hints, msg);
   const title = el('h1', '', `${o.number ? `${o.number}. ` : '시험 플레이 · '}${lv.name}`);
   const mech = el('div', 'mech', lv.mechanic);
   const priceBox = el('div', 'price');
@@ -121,6 +120,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       refresh();
     };
     if (k !== 'Shift') shiftAlone = false;
+    if (k !== 'Shift' && lower !== 'n') tut?.anyKey(); // 한 번짜리 말풍선은 아무 키나 누르면 닫힌다
     if (k === 'Escape') return done(() => o.onExit());
     if (k === '?' || lower === 'h') return done(() => (helpOpen = !helpOpen));
     if (lower === 'n')
@@ -257,9 +257,32 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     return [['방향키', '칸 고르기'], [`1~${Math.max(1, parts.length)}`, '부품 고르기'], ['Space', '놓기'], ['Shift', '미노로']];
   }
 
+  /** 판 위 안내: 빛나는 목표 칸 + 말풍선 */
+  function overlay(): Overlay | null {
+    const st = tut?.step;
+    if (!st || runner) return null;
+    const glow: { x: number; y: number }[] = [];
+    const m = st.glow !== undefined ? lv.solution?.minos[st.glow] : undefined;
+    if (m) for (const c of srsCells(m.id, m.r)) glow.push({ x: m.x + c.x, y: m.y + c.y });
+    const center = (cs: { x: number; y: number }[]) => ({
+      ax: cs.reduce((a, c) => a + c.x, 0) / cs.length + 0.5,
+      ay: Math.min(...cs.map((c) => c.y)),
+    });
+    let p = { ax: lv.w / 2, ay: 1.2 };
+    let below = false;
+    const a = play.active;
+    if (st.anchor === 'active' && a) {
+      const cs = play.stack.cellsOf(a).map((c) => ({ x: a.x + c.x, y: Math.max(0, a.y + c.y) }));
+      p = { ax: center(cs).ax, ay: Math.max(...cs.map((c) => c.y)) + 1 };
+      below = true;
+    }
+    else if (st.anchor === 'glow' && glow.length) p = center(glow);
+    else if (st.anchor === 'inlet') p = { ax: 0.5, ay: 0 };
+    else if (st.anchor === 'top') p = { ax: lv.w / 2, ay: 0.2 };
+    return { glow, bubble: { text: st.text, keys: st.keys, ax: p.ax, ay: p.ay, below } };
+  }
+
   function refresh() {
-    if (tut) tut.render(tutBox);
-    else tutBox.hidden = true;
     modeBar.innerHTML = '';
     for (const [m, label] of [['mino', '미노'], ['part', '부품']] as const) modeBar.append(el('span', 'mode' + (mode === m ? ' on' : ''), label));
     modeBar.append(el('span', 'dim', '  Shift 미노↔부품 · ? 전체 키'));
@@ -374,6 +397,8 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       bins: runner?.run.tally.bins ?? [],
       goals: lv.bins.map((b) => [b.red, b.blue]),
       fixedUids: play.built.fixed.minos,
+      overlay: overlay(),
+      time: t,
       blink: Math.floor(t / 400) % 2 === 0,
     });
     requestAnimationFrame(frame);
@@ -382,7 +407,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   refresh();
   requestAnimationFrame(frame);
   const w = window as unknown as { __hamster: unknown };
-  w.__hamster = { screen: 'level', play, get runner() { return runner; }, get message() { return message; } };
+  w.__hamster = { screen: 'level', play, get runner() { return runner; }, get message() { return message; }, get tutStep() { return tut?.active ? tut.index : -1; } };
   return {
     key,
     keyUp(e: KeyboardEvent) {

@@ -77,14 +77,10 @@ textarea.json { width: 100%; height: 160px; background: #12151d; color: #c9d1e6;
 .hints { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 10px; background: #1a2232; border: 1px solid #34507a; border-radius: 6px; }
 .hint { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; }
 .hint kbd { min-width: 0; font-size: 13px; }
-.tut { padding: 10px 12px; background: #2a2412; border: 2px solid #e0b84a; border-radius: 8px; display: flex; flex-direction: column; gap: 6px; }
-.tut-n { color: #e0b84a; font-size: 12px; font-weight: 600; }
-.tut-text { font-size: 15px; color: #fff4d6; }
-.tut-keys { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
 
 /* ---- 디자인 개선 (시안 C 톤): 어두운 바탕 + 크림 글자 + 둥근 카드 ---- */
 body { background: #0f1116; color: #f3ecdf; }
-h1, h2, .lname, .pricebig, .tut-n { font-family: 'Jua', system-ui, sans-serif; font-weight: 400; }
+h1, h2, .lname, .pricebig { font-family: 'Jua', system-ui, sans-serif; font-weight: 400; }
 h1 { font-size: 24px; color: #fff4d6; }
 h2 { font-size: 14px; color: #c9bfae; margin: 0 0 6px; letter-spacing: 0.02em; }
 .panel { display: flex; flex-direction: column; gap: 10px; }
