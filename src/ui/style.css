@@ -109,3 +109,20 @@ h2 { font-size: 14px; color: #c9bfae; margin: 0 0 6px; letter-spacing: 0.02em; }
 canvas.board { border: 1px solid #2c3140; border-radius: 14px; }
 .mode { border-color: #3a4152; }
 .mode.on { background: #9fd8c1; border-color: #9fd8c1; color: #14161c; }
+
+/* 첫 화면 · 레벨 카드 */
+.menubox { width: 620px; gap: 12px; }
+.titlecv { display: block; width: 100%; height: auto; border-radius: 16px; border: 1px solid #2c3140; }
+.titlehead { text-align: center; }
+.bigtitle { font-size: 40px; color: #fff4d6; margin: 2px 0; letter-spacing: 0.02em; }
+.lgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.lcard { background: #1a1d26; border: 2px solid #2c3140; border-radius: 14px; padding: 10px 8px; text-align: center; display: flex; flex-direction: column; gap: 2px; min-height: 92px; justify-content: center; }
+.lcard .lnum { font-family: 'Jua', system-ui, sans-serif; font-size: 26px; color: #fff4d6; }
+.lcard .lname { font-family: 'Jua', system-ui, sans-serif; font-size: 15px; color: #e9e1d2; }
+.lcard .lbest { font-size: 12px; color: #9aa3b8; }
+.lcard.cleared { border-color: #4f7a63; }
+.lcard.cleared .lbest { color: #ffe14a; }
+.lcard.locked { opacity: 0.45; }
+.lcard.pick { border-color: #ffe14a; background: #26261c; transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.4); }
+.lcard.sandbox { min-height: 0; flex-direction: row; gap: 14px; justify-content: center; align-items: baseline; }
+@media (max-width: 700px) { .menubox { width: 100%; } .lgrid { grid-template-columns: repeat(3, 1fr); } }
