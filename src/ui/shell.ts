@@ -9,6 +9,7 @@ import type { Screen } from './runner';
 import { isUnlocked } from './storage';
 import { newSandboxState } from './levelEditor';
 import { startReplay } from './replay';
+import { startAllClear } from './allclear';
 import { shareFromHash } from '../core/share';
 
 export function startShell(root: HTMLElement) {
@@ -20,11 +21,15 @@ export function startShell(root: HTMLElement) {
     screen?.dispose();
     screen = s;
   };
-  const menu = () => show(startMenu(root, LEVELS, menuSel, openLevel, sandbox));
+  const menu = () => show(startMenu(root, LEVELS, menuSel, openLevel, sandbox, allClear));
+  function allClear() {
+    show(startAllClear(root, LEVELS, menu));
+  }
   function openLevel(i: number) {
     menuSel = i;
     const next = i + 1 < LEVELS.length ? () => (isUnlocked(ids, i + 1) ? openLevel(i + 1) : menu()) : undefined;
-    show(startLevel(root, { level: LEVELS[i]!, number: i + 1, record: true, onExit: menu, onNext: next }));
+    const last = i === LEVELS.length - 1 ? allClear : undefined;
+    show(startLevel(root, { level: LEVELS[i]!, number: i + 1, record: true, onExit: menu, onNext: next, onAllClear: last }));
   }
   function sandbox() {
     menuSel = LEVELS.length;

@@ -126,3 +126,12 @@ canvas.board { border: 1px solid #2c3140; border-radius: 14px; }
 .lcard.pick { border-color: #ffe14a; background: #26261c; transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.4); }
 .lcard.sandbox { min-height: 0; flex-direction: row; gap: 14px; justify-content: center; align-items: baseline; }
 @media (max-width: 700px) { .menubox { width: 100%; } .lgrid { grid-template-columns: repeat(3, 1fr); } }
+.lcard.trophy .lname { color: #ffe14a; }
+.clearrows { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; margin: 4px 0 10px; }
+.crow { display: flex; gap: 8px; align-items: baseline; font-size: 14px; }
+.crow .cn { width: 18px; color: #9aa3b8; text-align: right; }
+.crow .cname { flex: 1; font-family: 'Jua', system-ui, sans-serif; }
+.crow .cbest { font-weight: 700; color: #fff4d6; }
+.crow .cbest.star { color: #ffe14a; }
+.crow .cbud { color: #9aa3b8; font-size: 12px; }
+.csum { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid #2c3140; padding-top: 8px; }

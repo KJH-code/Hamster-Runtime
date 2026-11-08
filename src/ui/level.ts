@@ -22,6 +22,8 @@ export interface LevelScreenOpts {
   record: boolean;
   onExit: () => void;
   onNext?: () => void;
+  /** 마지막 레벨을 깨고 Enter → 끝 화면 */
+  onAllClear?: () => void;
 }
 
 export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
@@ -139,6 +141,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     if (ctrl) return;
     if (lower === 'r') return done(toggleRun);
     if (k === 'Enter' && cleared && o.onNext) return done(() => o.onNext!());
+    if (k === 'Enter' && cleared && o.onAllClear) return done(() => o.onAllClear!());
     if (lower === 'c' && cleared && clearCode)
       return done(() => {
         const url = shareUrl(clearCode!);
@@ -249,7 +252,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
         const isNew = recordClear(lv.id, j.price, clearCode);
         best = isNew ? ' · 새 최저 기록!' : ` · 최저 ${bestPrice(lv.id)}`;
       }
-      say(`★ 클리어! 가격 ${j.price}${best}${o.onNext ? ' — Enter 다음 레벨' : ''} · C 풀이 링크 복사`);
+      say(`★ 클리어! 가격 ${j.price}${best}${o.onNext ? ' — Enter 다음 레벨' : o.onAllClear ? ' — Enter 끝 화면' : ''} · C 풀이 링크 복사`);
     } else {
       const why: string[] = [];
       if (j.loop) why.push('무한 루프');
@@ -263,7 +266,12 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   /** 지금 상황에서 쓸 키 3~4개 */
   function hintPairs(): [string, string][] {
     if (runner) {
-      if (cleared) return o.onNext ? [['Enter', '다음 레벨'], ['C', '풀이 링크 복사'], ['Esc', '목록'], ['R', '다시 고치기']] : [['C', '풀이 링크 복사'], ['Esc', '돌아가기'], ['R', '다시 고치기']];
+      if (cleared)
+        return o.onNext
+          ? [['Enter', '다음 레벨'], ['C', '풀이 링크 복사'], ['Esc', '목록'], ['R', '다시 고치기']]
+          : o.onAllClear
+            ? [['Enter', '끝 화면'], ['C', '풀이 링크 복사'], ['Esc', '목록']]
+            : [['C', '풀이 링크 복사'], ['Esc', '돌아가기'], ['R', '다시 고치기']];
       if (runner.run.done) return [['R', '리셋하고 고치기'], ['Esc', '목록']];
       return [['R', '멈추고 리셋']];
     }
