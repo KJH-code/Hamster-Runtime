@@ -7,6 +7,8 @@ import { Stack } from '../src/core/stack';
 import { LEVELS } from '../src/data/levels';
 import { PRICES } from '../src/data/prices';
 
+/** × 2 규칙의 예외 (재혁이 정함). 2번: 참조 1원 × 2 = 2 는 너무 빡빡해서 6 (2026-11-08) */
+const BUDGET_OVERRIDE: Record<string, number> = { '02-junction-plug': 6 };
 const solve = (lv: Level, layout: Layout) => verifyLayout(lv, layout, PRICES);
 
 describe('레벨 세트', () => {
@@ -28,7 +30,7 @@ describe('레벨 세트', () => {
       });
       it('예산 = 참조 풀이 가격 × 2 (prices.ts 를 바꾸면 budget 도 고친다)', () => {
         const price = solve(lv, lv.solution!).judgement!.price;
-        expect(lv.budget).toBe(budgetFromReference(price));
+        expect(lv.budget).toBe(BUDGET_OVERRIDE[lv.id] ?? budgetFromReference(price));
       });
       it('통 조건의 합 = 대기열 마릿수', () => {
         const red = lv.queue.filter((q) => q.color === 'red').length;
