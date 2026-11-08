@@ -7,7 +7,7 @@ import { computeLinks } from '../core/links';
 import { PART_NAMES } from '../core/parts';
 import { binCount, type Dir, type PartType } from '../core/types';
 import { MINOS, PIECE_ORDER } from '../data/minos';
-import { canvasSize, COLORS, render } from './render';
+import { artSize, renderArt, THEME } from './art';
 import type { Level } from '../core/level';
 import { fixedUids, levelModeKey, minoKey as placedKey, renderLevelPanel, saveReference, type SandboxState } from './levelEditor';
 import { renderHints, sizeCanvas, type Screen } from './runner';
@@ -82,7 +82,7 @@ export function startSandbox(
     const d = `${ed.board.w}x${ed.board.h}`;
     if (d === dims) return;
     dims = d;
-    const [cw, ch] = canvasSize(ed.board);
+    const [cw, ch] = artSize(ed.board);
     ctx = sizeCanvas(canvas, cw, ch);
   };
   fitCanvas();
@@ -397,7 +397,7 @@ export function startSandbox(
       const cur = run && !run.done && i === run.index;
       const r = el('div', 'qrow' + (mode === 'queue' && i === qSel ? ' sel' : '') + (cur ? ' cur' : '') + (done ? ' done' : ''));
       const dot = el('span', 'dot');
-      dot.style.background = COLORS[q.color]!;
+      dot.style.background = THEME.scarf[q.color]!;
       r.append(el('span', 'qi', `${i + 1}`), dot, el('span', '', q.inject === 'left' ? '왼쪽' : '오른쪽'));
       if (run && run.results[i]) {
         const res = run.results[i]!;
@@ -454,7 +454,7 @@ export function startSandbox(
     const pressed = new Set<string>();
     for (const [k, until] of pressedUntil) if (until > t) pressed.add(k);
     fitCanvas();
-    render(ctx, {
+    renderArt(ctx, THEME, {
       fixedUids: fixedUids(st),
       board: ed.board,
       links,
@@ -474,6 +474,8 @@ export function startSandbox(
       hamster,
       nextInject: run && !run.done ? run.queue[run.index]!.inject : ed.queue[0]?.inject ?? null,
       bins: run?.tally.bins ?? [],
+      ghost: null,
+      goals: null,
       blink: Math.floor(t / 400) % 2 === 0,
     });
     requestAnimationFrame(frame);

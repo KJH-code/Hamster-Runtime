@@ -8,7 +8,7 @@ import { PART_NAMES } from '../core/parts';
 import { LevelPlay } from '../core/play';
 import type { Dir, PartType } from '../core/types';
 import { MINOS, PIECE_ORDER, type PieceLetter } from '../data/minos';
-import { canvasSize, COLORS, render } from './render';
+import { artSize, renderArt, THEME } from './art';
 import { el, renderHints, Runner, sizeCanvas, type Screen } from './runner';
 import { bestPrice, recordClear } from './storage';
 import { LEVEL_TUTORIALS, Tutorial } from './tutorial';
@@ -54,7 +54,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   const modeBar = el('div', 'modebar');
   const canvas = document.createElement('canvas');
   canvas.className = 'board';
-  const [cw, ch] = canvasSize(play.board);
+  const [cw, ch] = artSize(play.board);
   const ctx = sizeCanvas(canvas, cw, ch);
   const hints = el('div', 'hints');
   const msg = el('div', 'status');
@@ -265,7 +265,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       const cur = r && !r.done && i === r.index;
       const row = el('div', 'qrow' + (cur ? ' cur' : '') + (doneQ ? ' done' : ''));
       const dot = el('span', 'dot');
-      dot.style.background = COLORS[q.color === 'red' ? 0 : 1]!;
+      dot.style.background = THEME.scarf[q.color === 'red' ? 0 : 1]!;
       row.append(el('span', 'qi', `${i + 1}`), dot, el('span', '', `${q.color === 'red' ? '빨강' : '파랑'} · ${q.inject === 'left' ? '왼쪽' : '오른쪽'}`));
       queueBox.append(row);
     });
@@ -328,7 +328,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     const sim = runner?.sim ?? null;
     const a = play.active;
     const g = play.ghost();
-    render(ctx, {
+    renderArt(ctx, THEME, {
       board: play.board,
       links: sim?.links ?? computeLinks(play.board),
       switchState: (x, y) => sim?.switchStateAt(x, y) ?? play.board.partAt(x, y)?.start,
@@ -337,7 +337,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       switchTurn: (x, y) => runner?.switchTurnAt(play.board, x, y) ?? 0,
       pressed: runner?.pressed(t) ?? new Set(),
       floating: a && !runner ? { cells: play.stack.cellsOf(a), x: a.x, y: a.y, ok: true } : null,
-      ghost: g && !runner ? { cells: play.stack.cellsOf(g), x: g.x, y: g.y, ok: true } : null,
+      ghost: g && !runner ? { cells: play.stack.cellsOf(g), x: g.x, y: g.y } : null,
       cursor: mode === 'part' && !runner ? cursor : null,
       hamster: runner?.hamster(t, play.board.h) ?? null,
       nextInject: runner && !runner.run.done ? runner.run.queue[runner.run.index]!.inject : (lv.queue[0]?.inject ?? null),
