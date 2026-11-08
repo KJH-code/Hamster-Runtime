@@ -234,7 +234,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       return [['R', '멈추고 리셋']];
     }
     if (mode === 'mino') {
-      if (play.active) return [['← →', '옮기기'], ['X / Z', '회전'], ['Space', '떨어뜨리기'], ['Q / E', '변형']];
+      if (play.active) return [['← →', '옮기기'], ['↓', '한 칸 내리기'], ['X / Z', '회전'], ['Space', '떨어뜨리기']];
       return [[`1~${Math.max(1, letters.length)}`, '미노 꺼내기'], ['Shift', '부품으로'], ['R', '실행'], ['?', '전체 키']];
     }
     if (!parts.length) return [['Shift', '미노로 돌아가기 (이 레벨은 부품이 없다)']];
