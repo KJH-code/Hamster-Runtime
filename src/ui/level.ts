@@ -8,7 +8,7 @@ import { PART_NAMES } from '../core/parts';
 import { LevelPlay } from '../core/play';
 import type { Dir, PartType } from '../core/types';
 import { MINOS, PIECE_ORDER, type PieceLetter } from '../data/minos';
-import { artSize, hamsterIcon, renderArt, THEME, type Overlay } from './art';
+import { artSize, burst, drawCelebration, hamsterIcon, renderArt, THEME, type Overlay, type Particle } from './art';
 import { el, renderHints, Runner, sizeCanvas, type Screen } from './runner';
 import { bestPrice, recordClear } from './storage';
 import { LEVEL_TUTORIALS, Tutorial } from './tutorial';
@@ -43,6 +43,8 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   let alive = true;
   /** Shift 를 다른 키 없이 눌렀다 뗐을 때만 미노↔부품 (? 를 칠 때 바뀌지 않게) */
   let shiftAlone = false;
+  let celebrate: { ps: Particle[]; t0: number } | null = null;
+  let failUntil = 0;
   let helpOpen = false;
 
   root.innerHTML = '';
@@ -211,6 +213,8 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     if (runner) {
       runner = null;
       cleared = false;
+      celebrate = null;
+      failUntil = 0;
       return say('리셋 — 다시 고칠 수 있다');
     }
     play.stack.cancelActive();
@@ -221,8 +225,10 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
 
   function finish() {
     const j = play.judge(runner!.run);
+    const now = performance.now();
     if (j.clear) {
       cleared = true;
+      celebrate = { ps: burst(cw / 2, ch * 0.32, now), t0: now };
       tev('clear');
       tut = null; // 깼으면 안내는 닫는다 (N 으로 다시 볼 수 있다)
       let best = '';
@@ -236,6 +242,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       if (j.loop) why.push('무한 루프');
       if (!j.binsOk.every(Boolean)) why.push('통 조건이 맞지 않음');
       if (j.overBudget) why.push(`예산 초과 (${j.price} > ${lv.budget})`);
+      failUntil = now + 1600;
       say(`✗ 실패: ${why.join(' · ')} — R 로 리셋`);
     }
   }
@@ -399,8 +406,11 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       fixedUids: play.built.fixed.minos,
       overlay: overlay(),
       time: t,
+      binBounce: runner?.binBounce(t, lv.bins.length),
+      failFlash: t < failUntil && Math.floor(t / 200) % 2 === 0,
       blink: Math.floor(t / 400) % 2 === 0,
     });
+    if (celebrate && !drawCelebration(ctx, celebrate.ps, celebrate.t0, t, cw, ch)) celebrate = null;
     requestAnimationFrame(frame);
   }
 

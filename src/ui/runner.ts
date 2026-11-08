@@ -25,6 +25,9 @@ export class Runner {
   private gearTarget = new Map<number, number>();
   private pressedUntil = new Map<string, number>();
   private last: number;
+  private binHits = new Map<number, number>();
+  private landAt = -1e9;
+  private lastMode: 'fall' | 'roll' = 'fall';
 
   constructor(board: Board, queue: QueueItem[], now: number) {
     this.run = new QueueRun(board, queue.map((q) => ({ ...q })));
@@ -48,7 +51,11 @@ export class Runner {
       if (before.lastDrive)
         for (const [node, dir] of before.lastDrive.dirs) this.gearTarget.set(node, (this.gearTarget.get(node) ?? 0) + dir * (Math.PI / 4));
       this.anim = { from, t0: t };
+      // 튜브에 막 들어간 순간 = 착지 (찌그러짐)
+      if (r.sim === before && before.mode === 'roll' && this.lastMode === 'fall') this.landAt = t;
+      this.lastMode = r.sim === before ? before.mode : 'fall';
       if (res) {
+        if (res.status === 'binned' && res.bin !== null) this.binHits.set(res.bin, t);
         this.finished = { sim: before, color: r.queue[r.results.length - 1]!.color, until: t + 700 };
         this.nextStepAt = t + 700;
         out = { n: r.results.length, ...res };
@@ -78,12 +85,26 @@ export class Runner {
     const color = this.finished ? this.finished.color : r.queue[Math.min(r.index, r.queue.length - 1)]!.color;
     const visible = shown.status === 'running' || this.finished !== null || r.loop;
     if (!visible) return null;
+    const stuck = shown.status === 'crashed' || shown.status === 'dead' || shown.status === 'junction' || shown.status === 'out';
+    // 떨어질 때는 길쭉, 착지 직후엔 납작
+    const land = (t - this.landAt) / 220;
+    const squash = shown.status === 'running' && shown.mode === 'fall' ? -0.1 : land < 1 ? 0.18 * (1 - land) : 0;
     return {
       x: this.anim.from.x + (shown.x - this.anim.from.x) * e,
       y: this.anim.from.y + ((shown.status === 'binned' ? boardH + 0.3 : shown.y) - this.anim.from.y) * e,
       color,
-      shake: shown.status === 'crashed' || shown.status === 'dead' || shown.status === 'junction' ? Math.sin(t / 25) * 3 : 0,
+      shake: stuck ? Math.sin(t / 25) * 3 : 0,
+      squash,
+      question: stuck,
     };
+  }
+
+  /** 통마다 통통 튀는 정도 (0~1) */
+  binBounce(t: number, n: number): number[] {
+    return Array.from({ length: n }, (_, i) => {
+      const d = (t - (this.binHits.get(i) ?? -1e9)) / 450;
+      return d >= 0 && d < 1 ? Math.sin(d * Math.PI) * (1 - d) : 0;
+    });
   }
 
   gearAngleAt(board: Board, x: number, y: number): number {

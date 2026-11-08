@@ -445,12 +445,14 @@ export interface ArtView {
   floating: { cells: ShapeCell[]; x: number; y: number; ok: boolean } | null;
   ghost: { cells: ShapeCell[]; x: number; y: number } | null;
   cursor: { x: number; y: number } | null;
-  hamster: { x: number; y: number; color: number; shake: number; squash?: number } | null;
+  hamster: { x: number; y: number; color: number; shake: number; squash?: number; question?: boolean } | null;
   nextInject: 'left' | 'right' | null;
   bins: number[][];
   goals: number[][] | null;
   /** 통별 통통 튐 (0~1) */
   binBounce?: number[];
+  /** 실패 직후: 안 맞는 통을 빨갛게 깜빡 */
+  failFlash?: boolean;
   fixedUids?: Set<number>;
   blink: boolean;
   /** 판 위 안내: 빛나는 칸 + 말풍선 (칸 좌표) */
@@ -511,7 +513,7 @@ export function renderArt(ctx: CanvasRenderingContext2D, t: Theme, v: ArtView) {
     const goal = v.goals?.[i];
     const counts = v.bins[i] ?? [0, 0];
     const met = goal && counts[0] === goal[0] && counts[1] === goal[1];
-    ctx.fillStyle = t.bin;
+    ctx.fillStyle = goal && v.failFlash && !met ? 'rgba(229,72,77,0.45)' : t.bin;
     ctx.strokeStyle = goal && v.bins.length ? (met ? '#53c26b' : '#e5484d') : t.binEdge;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -697,7 +699,26 @@ export function renderArt(ctx: CanvasRenderingContext2D, t: Theme, v: ArtView) {
   if (v.overlay) drawOverlay(ctx, t, v.overlay, board, v.time ?? 0);
 
   // 햄스터
-  if (v.hamster) drawHamster(ctx, t, (v.hamster.x + 0.5) * s + v.hamster.shake, OY + (v.hamster.y + 0.5) * s, s, v.hamster.color, v.hamster.squash ?? 0);
+  if (v.hamster) {
+    const hx = (v.hamster.x + 0.5) * s + v.hamster.shake;
+    const hy = OY + (v.hamster.y + 0.5) * s;
+    drawHamster(ctx, t, hx, hy, s, v.hamster.color, v.hamster.squash ?? 0);
+    if (v.hamster.question) {
+      // 갸웃: 물음표 말풍선
+      ctx.fillStyle = '#fff7e2';
+      ctx.strokeStyle = '#e0b84a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(hx + s * 0.42, hy - s * 0.55, s * 0.24, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#2a2116';
+      ctx.font = `bold ${Math.round(s * 0.34)}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('?', hx + s * 0.42, hy - s * 0.53);
+    }
+  }
 }
 
 
@@ -835,4 +856,91 @@ export function drawOverlay(ctx: CanvasRenderingContext2D, t: Theme, o: Overlay,
   ctx.restore();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+}
+
+// ---------------- 클리어 연출 ----------------
+
+export interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  born: number;
+  kind: 'star' | 'heart';
+  color: string;
+}
+
+export function burst(cx: number, cy: number, t: number, n = 26): Particle[] {
+  const colors = ['#ffe14a', '#ff8fa3', '#9fd8c1', '#a9cdf0', '#f4b9a0'];
+  return Array.from({ length: n }, (_, i) => {
+    const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.2;
+    const sp = 2.5 + Math.random() * 4;
+    return { x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, born: t + i * 12, kind: i % 3 === 0 ? 'heart' : 'star', color: colors[i % colors.length]! };
+  });
+}
+
+function star(ctx: CanvasRenderingContext2D, r: number) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+    const rr = i % 2 ? r * 0.45 : r;
+    ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+  }
+  ctx.closePath();
+}
+function heart(ctx: CanvasRenderingContext2D, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(0, r * 0.7);
+  ctx.bezierCurveTo(-r * 1.2, -r * 0.1, -r * 0.5, -r * 0.9, 0, -r * 0.35);
+  ctx.bezierCurveTo(r * 0.5, -r * 0.9, r * 1.2, -r * 0.1, 0, r * 0.7);
+  ctx.closePath();
+}
+
+/** 별·하트 + '클리어!' 배지. 다 끝났으면 false */
+export function drawCelebration(ctx: CanvasRenderingContext2D, ps: Particle[], t0: number, t: number, w: number, h: number): boolean {
+  const life = 1600;
+  let alive = false;
+  for (const p of ps) {
+    const age = t - p.born;
+    if (age < 0 || age > life) continue;
+    alive = true;
+    const k = age / 16;
+    const x = p.x + p.vx * k;
+    const y = p.y + p.vy * k + 0.06 * k * k;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(age / 300);
+    ctx.globalAlpha = 1 - age / life;
+    ctx.fillStyle = p.color;
+    p.kind === 'star' ? star(ctx, 7) : heart(ctx, 7);
+    ctx.fill();
+    ctx.restore();
+  }
+  const age = t - t0;
+  if (age < 2600) {
+    alive = true;
+    const pop = age < 250 ? 0.6 + 0.4 * Math.sin((age / 250) * Math.PI * 0.5) * 1.15 : 1;
+    ctx.save();
+    ctx.translate(w / 2, h * 0.32);
+    ctx.scale(pop, pop);
+    ctx.globalAlpha = age > 2200 ? 1 - (age - 2200) / 400 : 1;
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath();
+    ctx.roundRect(-92, -26, 188, 56, 18);
+    ctx.fill();
+    ctx.fillStyle = '#ffe14a';
+    ctx.strokeStyle = '#7a5a10';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(-94, -30, 188, 56, 18);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#3a2a08';
+    ctx.font = `30px 'Jua', system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('클리어!', 0, 0);
+    ctx.restore();
+  }
+  return alive;
 }
