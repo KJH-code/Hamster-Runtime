@@ -1,0 +1,39 @@
+{
+  "id": "03-slide-under",
+  "name": "끼워 넣기",
+  "mechanic": "↓ 로 한 칸씩 내린 뒤 옆으로 밀면 처마 밑으로 미노를 넣을 수 있다.",
+  "w": 9,
+  "h": 10,
+  "queue": [
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "left" },
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "left" }
+  ],
+  "bins": [
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 2, "blue": 2 }
+  ],
+  "allowed": {
+    "minos": ["I-tube", "I-empty", "O-tube", "O-empty", "T-tube-a", "T-tube-b", "T-empty", "S-tube", "S-empty", "Z-tube", "Z-empty", "L-tube", "L-empty", "J-tube", "J-empty"],
+    "parts": []
+  },
+  "budget": 8,
+  "fixed": {
+    "minos": [
+      { "id": "I-empty", "r": 0, "x": 5, "y": 6 },
+      { "id": "J-tube", "r": 2, "x": 6, "y": 7 }
+    ],
+    "parts": []
+  },
+  "solution": {
+    "minos": [
+      { "id": "S-tube", "r": 0, "x": 3, "y": 8 },
+      { "id": "J-tube", "r": 0, "x": 0, "y": 8 }
+    ],
+    "parts": []
+  }
+}

@@ -7,12 +7,10 @@ import { computeLinks } from '../core/links';
 import { PART_NAMES } from '../core/parts';
 import { binCount, type Dir, type PartType } from '../core/types';
 import { MINOS, PIECE_ORDER } from '../data/minos';
-import { canvasSize, COLORS, render } from './render';
+import { artSize, renderArt, THEME } from './art';
 import type { Level } from '../core/level';
 import { fixedUids, levelModeKey, minoKey as placedKey, renderLevelPanel, saveReference, type SandboxState } from './levelEditor';
 import { renderHints, sizeCanvas, type Screen } from './runner';
-import { markTutorialSeen, tutorialSeen } from './storage';
-import { SANDBOX_TUTORIAL, Tutorial } from './tutorial';
 
 type Mode = 'mino' | 'part' | 'queue' | 'level';
 const PARTS: { type: PartType; dir?: Dir; label: string }[] = [
@@ -41,8 +39,7 @@ export function startSandbox(
   onTest: (level: Level) => void,
 ): Screen {
   const ed = st.ed;
-  if (st.tut === undefined) st.tut = tutorialSeen('sandbox') ? null : new Tutorial(SANDBOX_TUTORIAL, () => markTutorialSeen('sandbox'));
-  const tev = (name: string) => st.tut?.event(name);
+  const tev = (_name: string) => {}; // 샌드박스는 안내 없음 (키 안내 줄과 ? 로 충분)
   let mode: Mode = 'mino';
   let lastEditMode: 'mino' | 'part' = 'mino';
   let shape = 0; // PIECE_ORDER 인덱스
@@ -71,9 +68,8 @@ export function startSandbox(
   root.append(left, panel);
   if (window.matchMedia('(pointer: coarse)').matches)
     left.append(el('div', 'notice', '이 샌드박스는 키보드가 필요합니다. 데스크톱에서 열어 주세요.'));
-  const tutBox = el('div', 'tut');
   const modeBar = el('div', 'modebar');
-  left.append(tutBox, modeBar);
+  left.append(modeBar);
   const canvas = document.createElement('canvas');
   canvas.className = 'board';
   let dims = '';
@@ -82,7 +78,7 @@ export function startSandbox(
     const d = `${ed.board.w}x${ed.board.h}`;
     if (d === dims) return;
     dims = d;
-    const [cw, ch] = canvasSize(ed.board);
+    const [cw, ch] = artSize(ed.board);
     ctx = sizeCanvas(canvas, cw, ch);
   };
   fitCanvas();
@@ -143,11 +139,6 @@ export function startSandbox(
       if (!e.repeat) shiftAlone = true;
       return;
     }
-    if (lower === 'n' && mode !== 'level')
-      return handled(e, () => {
-        if (st.tut?.active) st.tut.next();
-        else st.tut = new Tutorial(SANDBOX_TUTORIAL, () => markTutorialSeen('sandbox'));
-      });
     if (k === 'Tab') return handled(e, () => ((mode = mode === 'queue' ? lastEditMode : 'queue'), tev(`mode:${mode}`)));
     if (lower === 'l') return handled(e, () => ((mode = mode === 'level' ? lastEditMode : 'level'), tev(`mode:${mode}`)));
     if (mode === 'level') {
@@ -341,8 +332,6 @@ export function startSandbox(
   }
 
   function refresh() {
-    if (st.tut) st.tut.render(tutBox);
-    else tutBox.hidden = true;
     cursor.x = Math.min(cursor.x, ed.board.w - 1);
     cursor.y = Math.min(cursor.y, ed.board.h - 1);
     const modeName = mode === 'mino' ? '미노 모드' : mode === 'part' ? '부품 모드' : mode === 'queue' ? '대기열 모드' : '레벨 설정 모드';
@@ -384,7 +373,7 @@ export function startSandbox(
           : mode === 'queue'
             ? [['↑ / ↓', '햄스터 선택'], ['← / →', '투입구 왼/오'], ['1 / 2', '색 빨강/파랑'], ['Space / Enter', '선택 뒤에 추가'], ['Delete', '삭제']]
             : [['↑ / ↓', '항목 고르기'], ['← / →', '숫자 바꾸기'], ['Space', '사용 가능 켜고 끄기'], ['Enter', '글자 넣기'], ['P', '현재 배치를 참조 풀이로 저장'], ['T', '저장한 레벨 시험 플레이']];
-    rows.push(['Shift', '미노 ↔ 부품 모드'], ['Tab', '대기열 모드'], ['L', '레벨 설정 모드'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시 하기'], ['R', '실행 / 리셋 (레벨 모드 밖)'], ['Esc', '레벨 목록'], ['? / H', '이 목록 열고 닫기'], ['N', '안내 다음 / 다시 보기']);
+    rows.push(['Shift', '미노 ↔ 부품 모드'], ['Tab', '대기열 모드'], ['L', '레벨 설정 모드'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시 하기'], ['R', '실행 / 리셋 (레벨 모드 밖)'], ['Esc', '레벨 목록'], ['? / H', '이 목록 열고 닫기']);
     for (const [key, what] of rows) {
       const r = el('div', 'krow');
       r.append(el('kbd', '', key), el('span', '', what));
@@ -397,7 +386,7 @@ export function startSandbox(
       const cur = run && !run.done && i === run.index;
       const r = el('div', 'qrow' + (mode === 'queue' && i === qSel ? ' sel' : '') + (cur ? ' cur' : '') + (done ? ' done' : ''));
       const dot = el('span', 'dot');
-      dot.style.background = COLORS[q.color]!;
+      dot.style.background = THEME.scarf[q.color]!;
       r.append(el('span', 'qi', `${i + 1}`), dot, el('span', '', q.inject === 'left' ? '왼쪽' : '오른쪽'));
       if (run && run.results[i]) {
         const res = run.results[i]!;
@@ -454,7 +443,7 @@ export function startSandbox(
     const pressed = new Set<string>();
     for (const [k, until] of pressedUntil) if (until > t) pressed.add(k);
     fitCanvas();
-    render(ctx, {
+    renderArt(ctx, THEME, {
       fixedUids: fixedUids(st),
       board: ed.board,
       links,
@@ -474,6 +463,8 @@ export function startSandbox(
       hamster,
       nextInject: run && !run.done ? run.queue[run.index]!.inject : ed.queue[0]?.inject ?? null,
       bins: run?.tally.bins ?? [],
+      ghost: null,
+      goals: null,
       blink: Math.floor(t / 400) % 2 === 0,
     });
     requestAnimationFrame(frame);

@@ -1,7 +1,7 @@
 {
-  "id": "04-sensor-motor",
+  "id": "07-first-only",
   "name": "첫 손님만",
-  "mechanic": "센서 칸에 햄스터가 들어가면 옆 모터가 돌고, 맞물린 기어를 따라 스위치가 한 칸 넘어간다.",
+  "mechanic": "센서를 햄스터가 지나가면 붙은 모터가 돌고, 맞물린 기어를 따라 스위치가 넘어간다.",
   "w": 8,
   "h": 9,
   "queue": [
@@ -13,25 +13,27 @@
   "bins": [
     { "red": 1, "blue": 2 },
     { "red": 0, "blue": 0 },
-    { "red": 0, "blue": 0 },
-    { "red": 1, "blue": 0 }
+    { "red": 1, "blue": 0 },
+    { "red": 0, "blue": 0 }
   ],
   "allowed": {
     "minos": ["I-tube", "I-empty", "O-tube", "O-empty", "T-tube-a", "T-tube-b", "T-empty", "S-tube", "S-empty", "Z-tube", "Z-empty", "L-tube", "L-empty", "J-tube", "J-empty"],
     "parts": ["sensor", "gear", "motor", "switch", "plug"]
   },
-  "budget": 20,
+  "budget": 30,
   "fixed": {
     "minos": [
-      { "id": "J-tube", "r": 0, "x": 0, "y": 2 },
-      { "id": "I-tube", "r": 1, "x": 1, "y": 3 },
       { "id": "L-tube", "r": 2, "x": 0, "y": 5 },
-      { "id": "J-tube", "r": 2, "x": 4, "y": 5 }
+      { "id": "J-tube", "r": 2, "x": 3, "y": 5 },
+      { "id": "O-empty", "r": 0, "x": 1, "y": 4 }
     ],
     "parts": []
   },
   "solution": {
     "minos": [
+      { "id": "L-empty", "r": 2, "x": 0, "y": 2 },
+      { "id": "I-tube", "r": 1, "x": 1, "y": 2 },
+      { "id": "J-tube", "r": 0, "x": 0, "y": 1 },
       { "id": "O-empty", "r": 0, "x": 4, "y": 4 }
     ],
     "parts": [

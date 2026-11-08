@@ -1,0 +1,41 @@
+{
+  "id": "02-tower",
+  "name": "받침대",
+  "mechanic": "미노는 바닥이나 다른 미노 위에만 놓인다. 높은 곳의 길은 빈 미노로 받친다.",
+  "w": 7,
+  "h": 11,
+  "queue": [
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "left" },
+    { "color": "blue", "inject": "left" }
+  ],
+  "bins": [
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 1, "blue": 2 }
+  ],
+  "allowed": {
+    "minos": ["I-tube", "I-empty", "O-tube", "O-empty", "T-tube-a", "T-tube-b", "T-empty", "S-tube", "S-empty", "Z-tube", "Z-empty", "L-tube", "L-empty", "J-tube", "J-empty"],
+    "parts": []
+  },
+  "budget": 16,
+  "fixed": {
+    "minos": [
+      { "id": "I-tube", "r": 1, "x": 4, "y": 3 },
+      { "id": "I-tube", "r": 1, "x": 4, "y": 7 }
+    ],
+    "parts": []
+  },
+  "solution": {
+    "minos": [
+      { "id": "O-empty", "r": 0, "x": 0, "y": 9 },
+      { "id": "O-empty", "r": 0, "x": 0, "y": 7 },
+      { "id": "O-empty", "r": 0, "x": 0, "y": 5 },
+      { "id": "I-empty", "r": 0, "x": 0, "y": 3 },
+      { "id": "L-tube", "r": 1, "x": -1, "y": 1 },
+      { "id": "I-tube", "r": 0, "x": 2, "y": 2 }
+    ],
+    "parts": []
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "id": "05-plug",
+  "name": "마개",
+  "mechanic": "세 갈래가 만나면 햄스터가 멈춘다. 마개로 튜브 끝을 막으면 그 끝은 아무 데도 이어지지 않는다.",
+  "w": 8,
+  "h": 9,
+  "queue": [
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "left" },
+    { "color": "red", "inject": "left" }
+  ],
+  "bins": [
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 2, "blue": 1 }
+  ],
+  "allowed": {
+    "minos": ["I-tube", "I-empty", "O-tube", "O-empty", "T-tube-a", "T-tube-b", "T-empty", "S-tube", "S-empty", "Z-tube", "Z-empty", "L-tube", "L-empty", "J-tube", "J-empty"],
+    "parts": ["plug"]
+  },
+  "budget": 6,
+  "fixed": {
+    "minos": [
+      { "id": "I-tube", "r": 0, "x": 2, "y": 7 },
+      { "id": "I-tube", "r": 1, "x": 0, "y": 4 },
+      { "id": "I-tube", "r": 0, "x": 4, "y": 6 }
+    ],
+    "parts": [
+      { "x": 2, "y": 4, "type": "plug" }
+    ]
+  },
+  "solution": {
+    "minos": [
+      { "id": "L-tube", "r": 1, "x": -1, "y": 6 }
+    ],
+    "parts": [
+      { "x": 2, "y": 7, "type": "plug" }
+    ]
+  }
+}

@@ -1,37 +1,39 @@
 {
-  "id": "03-switch-start",
+  "id": "06-switch",
   "name": "선로 전환",
-  "mechanic": "스위치는 분기점에 끼우는 ㄱ자 관이다. 흰 점(공통 갈래)과 직각 갈래 하나를 잇고, 시작 방향을 고른다.",
+  "mechanic": "스위치는 분기점에 끼우는 ㄱ자 관이다. 흰 점(공통)과 직각 갈래 하나를 잇고, 시작 방향을 고른다.",
   "w": 8,
-  "h": 8,
+  "h": 9,
   "queue": [
     { "color": "red", "inject": "left" },
     { "color": "blue", "inject": "left" },
-    { "color": "red", "inject": "left" },
-    { "color": "blue", "inject": "right" }
+    { "color": "blue", "inject": "left" }
   ],
   "bins": [
-    { "red": 2, "blue": 1 },
+    { "red": 1, "blue": 2 },
     { "red": 0, "blue": 0 },
     { "red": 0, "blue": 0 },
-    { "red": 0, "blue": 1 }
+    { "red": 0, "blue": 0 }
   ],
   "allowed": {
     "minos": ["I-tube", "I-empty", "O-tube", "O-empty", "T-tube-a", "T-tube-b", "T-empty", "S-tube", "S-empty", "Z-tube", "Z-empty", "L-tube", "L-empty", "J-tube", "J-empty"],
     "parts": ["plug", "switch"]
   },
-  "budget": 6,
+  "budget": 16,
   "fixed": {
     "minos": [
-      { "id": "J-tube", "r": 0, "x": 0, "y": 1 },
-      { "id": "I-tube", "r": 1, "x": 1, "y": 2 },
       { "id": "L-tube", "r": 2, "x": 0, "y": 5 },
-      { "id": "J-tube", "r": 2, "x": 3, "y": 5 }
+      { "id": "J-tube", "r": 2, "x": 3, "y": 5 },
+      { "id": "O-empty", "r": 0, "x": 1, "y": 4 }
     ],
     "parts": []
   },
   "solution": {
-    "minos": [],
+    "minos": [
+      { "id": "L-empty", "r": 2, "x": 0, "y": 2 },
+      { "id": "I-tube", "r": 1, "x": 1, "y": 2 },
+      { "id": "J-tube", "r": 0, "x": 0, "y": 1 }
+    ],
     "parts": [
       { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "A" }
     ]

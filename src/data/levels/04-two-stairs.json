@@ -1,0 +1,37 @@
+{
+  "id": "04-two-stairs",
+  "name": "두 계단",
+  "mechanic": "햄스터는 튜브 출구에서 곧장 떨어진다. 떨어지는 줄에 위로 열린 끝을 대면 다시 받는다.",
+  "w": 11,
+  "h": 10,
+  "queue": [
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "right" },
+    { "color": "blue", "inject": "left" },
+    { "color": "red", "inject": "right" }
+  ],
+  "bins": [
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 2, "blue": 2 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 }
+  ],
+  "allowed": {
+    "minos": ["I-tube", "I-empty", "O-tube", "O-empty", "T-tube-a", "T-tube-b", "T-empty", "S-tube", "S-empty", "Z-tube", "Z-empty", "L-tube", "L-empty", "J-tube", "J-empty"],
+    "parts": []
+  },
+  "budget": 20,
+  "solution": {
+    "minos": [
+      { "id": "O-empty", "r": 0, "x": 0, "y": 8 },
+      { "id": "L-tube", "r": 1, "x": -1, "y": 5 },
+      { "id": "J-tube", "r": 0, "x": 2, "y": 8 },
+      { "id": "O-empty", "r": 0, "x": 9, "y": 8 },
+      { "id": "J-tube", "r": 3, "x": 9, "y": 5 },
+      { "id": "L-tube", "r": 0, "x": 6, "y": 8 }
+    ],
+    "parts": []
+  }
+}

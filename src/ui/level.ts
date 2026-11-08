@@ -2,13 +2,13 @@
  * 레벨 플레이 화면 — 키보드 전용. 편집은 core/play.ts, 실행은 Runner(QueueRun).
  * 화면에는 대기열 · 통 조건 · 총 가격/예산만 (케이스 목록 없음).
  */
-import { queueItems, type Level } from '../core/level';
+import { queueItems, srsCells, type Level } from '../core/level';
 import { computeLinks } from '../core/links';
 import { PART_NAMES } from '../core/parts';
 import { LevelPlay } from '../core/play';
 import type { Dir, PartType } from '../core/types';
 import { MINOS, PIECE_ORDER, type PieceLetter } from '../data/minos';
-import { canvasSize, COLORS, render } from './render';
+import { artSize, burst, drawCelebration, hamsterIcon, renderArt, THEME, type Overlay, type Particle } from './art';
 import { el, renderHints, Runner, sizeCanvas, type Screen } from './runner';
 import { bestPrice, recordClear } from './storage';
 import { LEVEL_TUTORIALS, Tutorial } from './tutorial';
@@ -43,6 +43,8 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   let alive = true;
   /** Shift 를 다른 키 없이 눌렀다 뗐을 때만 미노↔부품 (? 를 칠 때 바뀌지 않게) */
   let shiftAlone = false;
+  let celebrate: { ps: Particle[]; t0: number } | null = null;
+  let failUntil = 0;
   let helpOpen = false;
 
   root.innerHTML = '';
@@ -50,24 +52,36 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   const left = el('div', 'left');
   const panel = el('div', 'panel');
   root.append(left, panel);
-  const tutBox = el('div', 'tut');
   const modeBar = el('div', 'modebar');
   const canvas = document.createElement('canvas');
   canvas.className = 'board';
-  const [cw, ch] = canvasSize(play.board);
+  const [cw, ch] = artSize(play.board);
   const ctx = sizeCanvas(canvas, cw, ch);
   const hints = el('div', 'hints');
   const msg = el('div', 'status');
-  left.append(tutBox, modeBar, canvas, hints, msg);
+  left.append(modeBar, canvas, hints, msg);
   const title = el('h1', '', `${o.number ? `${o.number}. ` : '시험 플레이 · '}${lv.name}`);
   const mech = el('div', 'mech', lv.mechanic);
   const priceBox = el('div', 'price');
-  const queueBox = el('div', 'queue');
-  const goalBox = el('div', 'tally');
+  const queueBox = el('div', 'qicons');
+  const goalBox = el('div', 'goals');
   const selBox = el('div', 'sel');
+  const card = (...kids: HTMLElement[]) => {
+    const c = el('div', 'card');
+    c.append(...kids);
+    return c;
+  };
   const keysBox = el('div', 'keys');
   const keysHead = el('h2', '', '전체 키 (? 로 닫기)');
-  panel.append(title, mech, el('h2', '', '가격'), priceBox, el('h2', '', '대기열'), queueBox, el('h2', '', '통 조건'), goalBox, el('h2', '', '선택'), selBox, keysHead, keysBox);
+  panel.append(
+    card(title, mech),
+    card(el('h2', '', '가격 / 예산'), priceBox),
+    card(el('h2', '', '대기열 — 이 순서로 떨어진다'), queueBox),
+    card(el('h2', '', '통 목표'), goalBox),
+    selBox,
+    keysHead,
+    keysBox,
+  );
 
   const defsOf = (p: PieceLetter) => MINOS.filter((d) => d.piece === p && lv.allowed.minos.includes(d.id));
   const currentDef = () => {
@@ -108,6 +122,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       refresh();
     };
     if (k !== 'Shift') shiftAlone = false;
+    if (k !== 'Shift' && lower !== 'n') tut?.anyKey(); // 한 번짜리 말풍선은 아무 키나 누르면 닫힌다
     if (k === 'Escape') return done(() => o.onExit());
     if (k === '?' || lower === 'h') return done(() => (helpOpen = !helpOpen));
     if (lower === 'n')
@@ -198,6 +213,8 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     if (runner) {
       runner = null;
       cleared = false;
+      celebrate = null;
+      failUntil = 0;
       return say('리셋 — 다시 고칠 수 있다');
     }
     play.stack.cancelActive();
@@ -208,8 +225,10 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
 
   function finish() {
     const j = play.judge(runner!.run);
+    const now = performance.now();
     if (j.clear) {
       cleared = true;
+      celebrate = { ps: burst(cw / 2, ch * 0.32, now), t0: now };
       tev('clear');
       tut = null; // 깼으면 안내는 닫는다 (N 으로 다시 볼 수 있다)
       let best = '';
@@ -223,6 +242,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       if (j.loop) why.push('무한 루프');
       if (!j.binsOk.every(Boolean)) why.push('통 조건이 맞지 않음');
       if (j.overBudget) why.push(`예산 초과 (${j.price} > ${lv.budget})`);
+      failUntil = now + 1600;
       say(`✗ 실패: ${why.join(' · ')} — R 로 리셋`);
     }
   }
@@ -244,39 +264,79 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     return [['방향키', '칸 고르기'], [`1~${Math.max(1, parts.length)}`, '부품 고르기'], ['Space', '놓기'], ['Shift', '미노로']];
   }
 
+  /** 판 위 안내: 빛나는 목표 칸 + 말풍선 */
+  function overlay(): Overlay | null {
+    const st = tut?.step;
+    if (!st || runner) return null;
+    const glow: { x: number; y: number }[] = [];
+    const m = st.glow !== undefined ? lv.solution?.minos[st.glow] : undefined;
+    if (m) for (const c of srsCells(m.id, m.r)) glow.push({ x: m.x + c.x, y: m.y + c.y });
+    const center = (cs: { x: number; y: number }[]) => ({
+      ax: cs.reduce((a, c) => a + c.x, 0) / cs.length + 0.5,
+      ay: Math.min(...cs.map((c) => c.y)),
+    });
+    let p = { ax: lv.w / 2, ay: 1.2 };
+    let below = false;
+    const a = play.active;
+    if (st.anchor === 'active' && a) {
+      const cs = play.stack.cellsOf(a).map((c) => ({ x: a.x + c.x, y: Math.max(0, a.y + c.y) }));
+      p = { ax: center(cs).ax, ay: Math.max(...cs.map((c) => c.y)) + 1 };
+      below = true;
+    }
+    else if (st.anchor === 'glow' && glow.length) p = center(glow);
+    else if (st.anchor === 'inlet') p = { ax: 0.5, ay: 0 };
+    else if (st.anchor === 'top') p = { ax: lv.w / 2, ay: 0.2 };
+    return { glow, bubble: { text: st.text, keys: st.keys, ax: p.ax, ay: p.ay, below } };
+  }
+
   function refresh() {
-    if (tut) tut.render(tutBox);
-    else tutBox.hidden = true;
     modeBar.innerHTML = '';
     for (const [m, label] of [['mino', '미노'], ['part', '부품']] as const) modeBar.append(el('span', 'mode' + (mode === m ? ' on' : ''), label));
     modeBar.append(el('span', 'dim', '  Shift 미노↔부품 · ? 전체 키'));
 
     const price = play.price();
     priceBox.innerHTML = '';
-    const pr = el('div', 'pricebig' + (price > lv.budget ? ' over' : ''), `${price} / 예산 ${lv.budget}`);
-    priceBox.append(pr);
+    const over = price > lv.budget;
+    priceBox.append(el('div', 'pricebig' + (over ? ' over' : ''), `${price} / ${lv.budget}`));
+    const bar = el('div', 'bar');
+    const fill = el('div', 'fill' + (over ? ' over' : price > lv.budget * 0.75 ? ' warn' : ''));
+    fill.style.width = `${Math.min(100, lv.budget ? (price / lv.budget) * 100 : price ? 100 : 0)}%`;
+    bar.append(fill);
+    priceBox.append(bar);
     const best = o.record ? bestPrice(lv.id) : undefined;
-    if (best !== undefined) priceBox.append(el('div', 'dim', `최저 기록 ${best}`));
+    if (best !== undefined) priceBox.append(el('div', 'dim', `★ 최저 기록 ${best}`));
 
     queueBox.innerHTML = '';
     const r = runner?.run;
     lv.queue.forEach((q, i) => {
       const doneQ = r ? i < r.results.length : false;
       const cur = r && !r.done && i === r.index;
-      const row = el('div', 'qrow' + (cur ? ' cur' : '') + (doneQ ? ' done' : ''));
-      const dot = el('span', 'dot');
-      dot.style.background = COLORS[q.color === 'red' ? 0 : 1]!;
-      row.append(el('span', 'qi', `${i + 1}`), dot, el('span', '', `${q.color === 'red' ? '빨강' : '파랑'} · ${q.inject === 'left' ? '왼쪽' : '오른쪽'}`));
-      queueBox.append(row);
+      const item = el('div', 'qitem' + (cur ? ' cur' : '') + (doneQ ? ' done' : ''));
+      item.title = `${i + 1}번 ${q.color === 'red' ? '빨강' : '파랑'} ${q.inject === 'left' ? '왼쪽' : '오른쪽'}`;
+      item.append(hamsterIcon(q.color === 'red' ? 0 : 1), el('span', 'qin', q.inject === 'left' ? '◀' : '▶'));
+      queueBox.append(item);
     });
 
     goalBox.innerHTML = '';
+    const scarf = (col: number, n: number) => {
+      const s = el('span', 'gc');
+      const d = el('span', 'dot');
+      d.style.background = THEME.scarf[col]!;
+      s.append(d, el('span', '', String(n)));
+      return s;
+    };
+    let empties = 0;
     lv.bins.forEach((g, i) => {
+      if (g.red === 0 && g.blue === 0) return void empties++;
       const got = r?.tally.bins[i];
+      const doneRun = !!(got && r!.done);
       const ok = got && got[0] === g.red && got[1] === g.blue;
-      const t = `통 ${i}: 빨강 ${g.red} · 파랑 ${g.blue}` + (got && r!.done ? `  (지금 ${got[0]} · ${got[1]}) ${ok ? '✓' : '✗'}` : '');
-      goalBox.append(el('div', got && r!.done ? (ok ? 'ok' : 'bad') : '', t));
+      const chip = el('div', 'goal' + (doneRun ? (ok ? ' ok' : ' bad') : ''));
+      chip.append(el('span', 'gname', `통 ${i}`), scarf(0, g.red), scarf(1, g.blue));
+      if (doneRun) chip.append(el('span', '', ok ? '✓' : '✗'));
+      goalBox.append(chip);
     });
+    if (empties) goalBox.append(el('div', 'dim', '나머지 통은 비워 둔다'));
 
     selBox.innerHTML = '';
     if (mode === 'mino') {
@@ -328,7 +388,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     const sim = runner?.sim ?? null;
     const a = play.active;
     const g = play.ghost();
-    render(ctx, {
+    renderArt(ctx, THEME, {
       board: play.board,
       links: sim?.links ?? computeLinks(play.board),
       switchState: (x, y) => sim?.switchStateAt(x, y) ?? play.board.partAt(x, y)?.start,
@@ -337,22 +397,27 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       switchTurn: (x, y) => runner?.switchTurnAt(play.board, x, y) ?? 0,
       pressed: runner?.pressed(t) ?? new Set(),
       floating: a && !runner ? { cells: play.stack.cellsOf(a), x: a.x, y: a.y, ok: true } : null,
-      ghost: g && !runner ? { cells: play.stack.cellsOf(g), x: g.x, y: g.y, ok: true } : null,
+      ghost: g && !runner ? { cells: play.stack.cellsOf(g), x: g.x, y: g.y } : null,
       cursor: mode === 'part' && !runner ? cursor : null,
       hamster: runner?.hamster(t, play.board.h) ?? null,
       nextInject: runner && !runner.run.done ? runner.run.queue[runner.run.index]!.inject : (lv.queue[0]?.inject ?? null),
       bins: runner?.run.tally.bins ?? [],
       goals: lv.bins.map((b) => [b.red, b.blue]),
       fixedUids: play.built.fixed.minos,
+      overlay: overlay(),
+      time: t,
+      binBounce: runner?.binBounce(t, lv.bins.length),
+      failFlash: t < failUntil && Math.floor(t / 200) % 2 === 0,
       blink: Math.floor(t / 400) % 2 === 0,
     });
+    if (celebrate && !drawCelebration(ctx, celebrate.ps, celebrate.t0, t, cw, ch)) celebrate = null;
     requestAnimationFrame(frame);
   }
 
   refresh();
   requestAnimationFrame(frame);
   const w = window as unknown as { __hamster: unknown };
-  w.__hamster = { screen: 'level', play, get runner() { return runner; }, get message() { return message; } };
+  w.__hamster = { screen: 'level', play, get runner() { return runner; }, get message() { return message; }, get tutStep() { return tut?.active ? tut.index : -1; } };
   return {
     key,
     keyUp(e: KeyboardEvent) {
