@@ -9,8 +9,9 @@ export const SIDE_LIST: readonly Sides[] = [N, E, S, W];
 /** 미노 칸: 튜브(경로의 한 칸) 또는 빈칸 */
 export type CellKind = 'tube' | 'empty';
 export type Dir = 1 | -1; // 1 = 시계, -1 = 반시계
-export type SwitchState = 'A' | 'B' | 'C';
-export const SWITCH_STATES: readonly SwitchState[] = ['A', 'B', 'C'];
+/** 스위치 = ㄱ자 관. A = 공통 갈래의 반시계 쪽 직각 갈래, B = 시계 쪽 직각 갈래 */
+export type SwitchState = 'A' | 'B';
+export const SWITCH_STATES: readonly SwitchState[] = ['A', 'B'];
 
 export interface Cell {
   kind: CellKind;

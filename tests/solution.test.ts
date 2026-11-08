@@ -55,11 +55,11 @@ describe('현재 배치를 참조 풀이로 저장', () => {
     put(b, 'I-tube', 0, 0, 2);
     return b;
   };
-  it('통 조건이 맞으면 레벨이 되고, 예산 = 5 × 1.25 올림 = 7', () => {
+  it('통 조건이 맞으면 레벨이 되고, 예산 = 5 × 2 = 10', () => {
     const r = levelFromBoard(board(), queue, meta([{ red: 1, blue: 0 }, { red: 0, blue: 1 }]), () => false, () => false, P, M);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.level.budget).toBe(7);
+    expect(r.level.budget).toBe(10);
     expect(r.level.solution!.minos).toEqual([{ id: 'I-tube', r: 1, x: -2, y: 2 }]);
     const again = parseLevel(serializeLevel(r.level));
     expect(verifyLayout(again, again.solution!, P, M).judgement!.clear).toBe(true);

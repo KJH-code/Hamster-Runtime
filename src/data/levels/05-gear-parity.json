@@ -17,10 +17,10 @@
     { "red": 0, "blue": 1 }
   ],
   "allowed": {
-    "minos": [],
-    "parts": ["motor", "gear"]
+    "minos": ["I-tube", "I-empty", "O-tube", "O-empty", "T-tube-a", "T-tube-b", "T-empty", "S-tube", "S-empty", "Z-tube", "Z-empty", "L-tube", "L-empty", "J-tube", "J-empty"],
+    "parts": ["sensor", "gear", "motor", "switch", "plug"]
   },
-  "budget": 9,
+  "budget": 14,
   "fixed": {
     "minos": [
       { "id": "J-tube", "r": 0, "x": 0, "y": 2 },
@@ -30,14 +30,14 @@
       { "id": "I-empty", "r": 1, "x": 5, "y": 6 }
     ],
     "parts": [
-      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "A" },
+      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "B" },
       { "x": 6, "y": 7, "type": "sensor" }
     ]
   },
   "solution": {
     "minos": [],
     "parts": [
-      { "x": 7, "y": 7, "type": "motor", "dir": "ccw" },
+      { "x": 7, "y": 7, "type": "motor", "dir": "cw" },
       { "x": 7, "y": 6, "type": "gear" },
       { "x": 6, "y": 6, "type": "gear" },
       { "x": 5, "y": 6, "type": "gear" },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Board } from '../src/core/board';
-import { activeArm, cycleCommon, partRuleError, switchArms } from '../src/core/parts';
+import { activeArm, cycleCommon, defaultCommon, partRuleError, switchArms, validCommon } from '../src/core/parts';
 import { E, N, S, W } from '../src/core/types';
 import { part, put } from './helpers';
 
@@ -41,22 +41,31 @@ describe('부품 배치 규칙', () => {
   });
 });
 
-describe('스위치 갈래 이름', () => {
-  it('공통에서 시계 방향 순서로 A, B, C', () => {
-    expect(switchArms(N | E | W, N)).toEqual([E, W]);
-    expect(switchArms(N | E | W, E)).toEqual([W, N]);
-    expect(switchArms(N | E | S | W, N)).toEqual([E, S, W]);
-    expect(switchArms(N | E | S | W, W)).toEqual([N, E, S]);
+describe('스위치 = ㄱ자 관', () => {
+  it('A = 공통의 반시계 쪽 직각 갈래, B = 시계 쪽 직각 갈래', () => {
+    expect(switchArms(N | E | W, N)).toEqual([W, E]); // 위 공통: A 왼쪽, B 오른쪽
+    expect(switchArms(N | E | S | W, N)).toEqual([W, E]); // 아래(맞은편)는 일자라 갈래 아님
+    expect(switchArms(N | E | S | W, W)).toEqual([S, N]);
+    expect(switchArms(N | E | S | W, E)).toEqual([N, S]);
+  });
+  it('양옆 직각 갈래가 없으면 공통이 될 수 없다 (T자 옆)', () => {
+    expect(validCommon(N | E | W, N)).toBe(true);
+    expect(validCommon(N | E | W, E)).toBe(false); // 아래 갈래 없음
+    expect(validCommon(N | E | W, W)).toBe(false);
+    expect(switchArms(N | E | W, E)).toEqual([]);
   });
   it('상태 → 열린 갈래', () => {
     const p = { type: 'switch' as const, arms: N | E | S | W, common: N };
-    expect(activeArm(p, 'A')).toBe(E);
-    expect(activeArm(p, 'B')).toBe(S);
-    expect(activeArm(p, 'C')).toBe(W);
+    expect(activeArm(p, 'A')).toBe(W);
+    expect(activeArm(p, 'B')).toBe(E);
   });
-  it('공통 갈래 돌리기: 실제 갈래 중에서만 순환', () => {
-    expect(cycleCommon(N | E | W, N, 1)).toBe(E);
-    expect(cycleCommon(N | E | W, E, 1)).toBe(W); // S 는 갈래가 아님
-    expect(cycleCommon(N | E | W, N, -1)).toBe(W);
+  it('공통 갈래 돌리기: 유효한 공통만, 없으면 그대로', () => {
+    expect(cycleCommon(N | E | W, N, 1)).toBe(N);
+    expect(cycleCommon(N | E | S | W, N, 1)).toBe(E);
+    expect(cycleCommon(N | E | S | W, N, -1)).toBe(W);
+  });
+  it('기본 공통: 원하는 쪽이 안 되면 첫 유효한 쪽', () => {
+    expect(defaultCommon(N | E | W, E)).toBe(N);
+    expect(defaultCommon(N | E | W, N)).toBe(N);
   });
 });

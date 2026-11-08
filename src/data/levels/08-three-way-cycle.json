@@ -20,10 +20,10 @@
     { "red": 1, "blue": 1 }
   ],
   "allowed": {
-    "minos": ["O-empty", "I-empty"],
-    "parts": ["switch", "sensor", "motor", "gear"]
+    "minos": ["I-tube", "I-empty", "O-tube", "O-empty", "T-tube-a", "T-tube-b", "T-empty", "S-tube", "S-empty", "Z-tube", "Z-empty", "L-tube", "L-empty", "J-tube", "J-empty"],
+    "parts": ["sensor", "gear", "motor", "switch", "plug"]
   },
-  "budget": 37,
+  "budget": 58,
   "fixed": {
     "minos": [
       { "id": "J-tube", "r": 0, "x": 0, "y": 2 },
@@ -31,27 +31,27 @@
       { "id": "L-tube", "r": 2, "x": 0, "y": 5 },
       { "id": "O-empty", "r": 0, "x": 1, "y": 4 },
       { "id": "I-tube", "r": 0, "x": 4, "y": 5 },
-      { "id": "L-tube", "r": 3, "x": 8, "y": 6 },
       { "id": "I-tube", "r": 1, "x": 5, "y": 7 },
       { "id": "I-empty", "r": 0, "x": 3, "y": 6 },
-      { "id": "I-empty", "r": 1, "x": 6, "y": 7 }
+      { "id": "J-tube", "r": 1, "x": 6, "y": 3 },
+      { "id": "I-empty", "r": 1, "x": 6, "y": 4 }
     ],
     "parts": []
   },
   "solution": {
     "minos": [],
     "parts": [
-      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "B" },
-      { "x": 7, "y": 6, "type": "switch", "common": "W", "start": "A" },
+      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "A" },
+      { "x": 7, "y": 6, "type": "switch", "common": "W", "start": "B" },
       { "x": 2, "y": 6, "type": "sensor" },
-      { "x": 2, "y": 5, "type": "motor", "dir": "ccw" },
+      { "x": 2, "y": 5, "type": "motor", "dir": "cw" },
       { "x": 3, "y": 5, "type": "gear" },
-      { "x": 9, "y": 8, "type": "sensor" },
-      { "x": 8, "y": 8, "type": "motor", "dir": "ccw" },
-      { "x": 7, "y": 7, "type": "sensor" },
-      { "x": 8, "y": 7, "type": "motor", "dir": "ccw" },
+      { "x": 7, "y": 5, "type": "sensor" },
+      { "x": 8, "y": 5, "type": "motor", "dir": "ccw" },
       { "x": 8, "y": 6, "type": "gear" },
-      { "x": 6, "y": 7, "type": "motor", "dir": "cw" },
+      { "x": 7, "y": 7, "type": "sensor" },
+      { "x": 8, "y": 7, "type": "motor", "dir": "cw" },
+      { "x": 6, "y": 7, "type": "motor", "dir": "ccw" },
       { "x": 5, "y": 7, "type": "gear" },
       { "x": 4, "y": 7, "type": "gear" },
       { "x": 3, "y": 7, "type": "gear" }

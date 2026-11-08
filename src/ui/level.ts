@@ -9,8 +9,9 @@ import { LevelPlay } from '../core/play';
 import type { Dir, PartType } from '../core/types';
 import { MINOS, PIECE_ORDER, type PieceLetter } from '../data/minos';
 import { canvasSize, COLORS, render } from './render';
-import { el, Runner, sizeCanvas, type Screen } from './runner';
+import { el, renderHints, Runner, sizeCanvas, type Screen } from './runner';
 import { bestPrice, recordClear } from './storage';
+import { LEVEL_TUTORIALS, Tutorial } from './tutorial';
 
 export interface LevelScreenOpts {
   level: Level;
@@ -40,19 +41,24 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   let cleared = false;
   let message = '';
   let alive = true;
+  /** Shift 를 다른 키 없이 눌렀다 뗐을 때만 미노↔부품 (? 를 칠 때 바뀌지 않게) */
+  let shiftAlone = false;
+  let helpOpen = false;
 
   root.innerHTML = '';
   root.className = 'app';
   const left = el('div', 'left');
   const panel = el('div', 'panel');
   root.append(left, panel);
+  const tutBox = el('div', 'tut');
   const modeBar = el('div', 'modebar');
   const canvas = document.createElement('canvas');
   canvas.className = 'board';
   const [cw, ch] = canvasSize(play.board);
   const ctx = sizeCanvas(canvas, cw, ch);
+  const hints = el('div', 'hints');
   const msg = el('div', 'status');
-  left.append(modeBar, canvas, msg);
+  left.append(tutBox, modeBar, canvas, hints, msg);
   const title = el('h1', '', `${o.number ? `${o.number}. ` : '시험 플레이 · '}${lv.name}`);
   const mech = el('div', 'mech', lv.mechanic);
   const priceBox = el('div', 'price');
@@ -60,7 +66,8 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   const goalBox = el('div', 'tally');
   const selBox = el('div', 'sel');
   const keysBox = el('div', 'keys');
-  panel.append(title, mech, el('h2', '', '가격'), priceBox, el('h2', '', '대기열'), queueBox, el('h2', '', '통 조건'), goalBox, el('h2', '', '선택'), selBox, el('h2', '', '키'), keysBox);
+  const keysHead = el('h2', '', '전체 키 (? 로 닫기)');
+  panel.append(title, mech, el('h2', '', '가격'), priceBox, el('h2', '', '대기열'), queueBox, el('h2', '', '통 조건'), goalBox, el('h2', '', '선택'), selBox, keysHead, keysBox);
 
   const defsOf = (p: PieceLetter) => MINOS.filter((d) => d.piece === p && lv.allowed.minos.includes(d.id));
   const currentDef = () => {
@@ -69,6 +76,10 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     const vs = defsOf(p);
     return vs[(variant[p] ?? 0) % vs.length]!;
   };
+  const tutSteps = o.record ? LEVEL_TUTORIALS[lv.id] : undefined;
+  /** 튜토리얼: 아직 안 깬 레벨에서만 (N 으로 다시 볼 수 있다) */
+  let tut = tutSteps && bestPrice(lv.id) === undefined ? new Tutorial(tutSteps) : null;
+  const tev = (name: string) => tut?.event(name);
   const say = (t: string) => (message = t);
   const res = (r: { ok: boolean; reason?: string }, okText: string) => say(r.ok ? okText : `✗ ${(r as { reason: string }).reason}`);
   const editing = () => {
@@ -81,7 +92,9 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   const spawnCurrent = () => {
     const d = currentDef();
     if (!d) return say('이 레벨에서는 미노를 쓸 수 없다');
-    res(play.spawn(d.id, performance.now()), `${d.name} — ←→ 이동, X/Z 회전, Space 떨어뜨리기`);
+    const r = play.spawn(d.id, performance.now());
+    if (r.ok) tev('spawn');
+    res(r, `${d.name}`);
   };
 
   function key(e: KeyboardEvent) {
@@ -94,15 +107,23 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       f();
       refresh();
     };
+    if (k !== 'Shift') shiftAlone = false;
     if (k === 'Escape') return done(() => o.onExit());
+    if (k === '?' || lower === 'h') return done(() => (helpOpen = !helpOpen));
+    if (lower === 'n')
+      return done(() => {
+        if (tut?.active) tut.next();
+        else if (tutSteps) tut = new Tutorial(tutSteps);
+        else say('이 레벨에는 안내가 없다');
+      });
     if (ctrl && lower === 'z' && !e.shiftKey) return done(() => editing() && say(play.undo() ? '되돌림' : '되돌릴 것 없음'));
     if (ctrl && (lower === 'y' || (lower === 'z' && e.shiftKey))) return done(() => editing() && say(play.redo() ? '다시 함' : '다시 할 것 없음'));
     if (ctrl) return;
     if (lower === 'r') return done(toggleRun);
     if (k === 'Enter' && cleared && o.onNext) return done(() => o.onNext!());
     if (k === 'Shift') {
-      if (e.repeat) return;
-      return done(() => (mode = mode === 'mino' ? 'part' : 'mino'));
+      if (!e.repeat) shiftAlone = true;
+      return;
     }
     if (!editing()) return done(() => {});
     if (mode === 'mino') {
@@ -120,18 +141,25 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
         spawnCurrent();
       });
       const a = play.active;
-      if (k === 'ArrowLeft') return done(() => a && play.move(-1, now));
-      if (k === 'ArrowRight') return done(() => a && play.move(1, now));
+      if (k === 'ArrowLeft') return done(() => a && play.move(-1, now) && tev('move'));
+      if (k === 'ArrowRight') return done(() => a && play.move(1, now) && tev('move'));
       if (k === 'ArrowDown') return done(() => a && play.softDrop(now));
-      if (lower === 'x') return done(() => a && play.rotate(1, now));
-      if (lower === 'z') return done(() => a && play.rotate(-1, now));
-      if (k === ' ' || k === 'Enter') return done(() => (a ? res(play.hardDrop(), '놓음') : spawnCurrent()));
+      if (lower === 'x') return done(() => a && play.rotate(1, now) && tev('rotate'));
+      if (lower === 'z') return done(() => a && play.rotate(-1, now) && tev('rotate'));
+      if (k === ' ' || k === 'Enter')
+        return done(() => {
+          if (!a) return spawnCurrent();
+          const r = play.hardDrop();
+          if (r.ok) tev('drop');
+          res(r, '놓음');
+        });
       if (k === 'Delete' || k === 'Backspace') return done(() => (a ? (play.undo(), say('취소')) : res(play.removeLastMino(), '마지막 미노 제거')));
     } else {
       const move = (dx: number, dy: number) => {
         if (play.board.inBounds(cursor.x + dx, cursor.y + dy)) {
           cursor.x += dx;
           cursor.y += dy;
+          tev('cursor');
         }
       };
       if (/^[1-9]$/.test(k)) return done(() => {
@@ -143,13 +171,24 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       if (k === 'ArrowRight') return done(() => move(1, 0));
       if (k === 'ArrowDown') return done(() => move(0, 1));
       if (k === 'ArrowUp') return done(() => move(0, -1));
-      if (lower === 'x' || lower === 'z') return done(() => res(play.rotateSwitch(cursor.x, cursor.y, lower === 'x' ? 1 : -1), '스위치 공통 갈래 바꿈'));
-      if (lower === 'a' || lower === 'b' || lower === 'c')
-        return done(() => res(play.setSwitchStart(cursor.x, cursor.y, lower.toUpperCase() as 'A' | 'B' | 'C'), `시작 상태 ${lower.toUpperCase()}`));
+      if (lower === 'x' || lower === 'z')
+        return done(() => {
+          const r = play.rotateSwitch(cursor.x, cursor.y, lower === 'x' ? 1 : -1);
+          if (r.ok) tev('switchCommon');
+          res(r, '스위치 공통 갈래 바꿈');
+        });
+      if (lower === 'a' || lower === 'b')
+        return done(() => {
+          const r = play.setSwitchStart(cursor.x, cursor.y, lower.toUpperCase() as 'A' | 'B');
+          if (r.ok) tev('switchStart');
+          res(r, `시작 방향 ${lower.toUpperCase()}`);
+        });
       if (k === ' ' || k === 'Enter') return done(() => {
         const p = parts[partIdx];
         if (!p) return say('이 레벨에서는 부품을 쓸 수 없다');
-        res(play.placePart(cursor.x, cursor.y, p.type, p.dir), `${p.label} 놓음`);
+        const r = play.placePart(cursor.x, cursor.y, p.type, p.dir);
+        if (r.ok) tev(`part:${p.type}`);
+        res(r, `${p.label} 놓음`);
       });
       if (k === 'Delete' || k === 'Backspace') return done(() => res(play.removePart(cursor.x, cursor.y), '부품 제거'));
     }
@@ -163,6 +202,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     }
     play.stack.cancelActive();
     runner = new Runner(play.board, queueItems(lv), performance.now());
+    tev('run');
     say('실행 중 — R 로 리셋');
   }
 
@@ -170,6 +210,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     const j = play.judge(runner!.run);
     if (j.clear) {
       cleared = true;
+      tev('clear');
       let best = '';
       if (o.record) {
         const isNew = recordClear(lv.id, j.price);
@@ -185,10 +226,29 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     }
   }
 
+  /** 지금 상황에서 쓸 키 3~4개 */
+  function hintPairs(): [string, string][] {
+    if (runner) {
+      if (cleared) return o.onNext ? [['Enter', '다음 레벨'], ['Esc', '목록'], ['R', '다시 고치기']] : [['Esc', '돌아가기'], ['R', '다시 고치기']];
+      if (runner.run.done) return [['R', '리셋하고 고치기'], ['Esc', '목록']];
+      return [['R', '멈추고 리셋']];
+    }
+    if (mode === 'mino') {
+      if (play.active) return [['← →', '옮기기'], ['↓', '한 칸 내리기'], ['X / Z', '회전'], ['Space', '떨어뜨리기']];
+      return [[`1~${Math.max(1, letters.length)}`, '미노 꺼내기'], ['Shift', '부품으로'], ['R', '실행'], ['?', '전체 키']];
+    }
+    if (!parts.length) return [['Shift', '미노로 돌아가기 (이 레벨은 부품이 없다)']];
+    const here = play.board.partAt(cursor.x, cursor.y);
+    if (here?.type === 'switch' && !play.isFixedCell(cursor.x, cursor.y)) return [['A / B', '시작 방향'], ['X / Z', '공통(흰 점) 돌리기'], ['Delete', '지우기']];
+    return [['방향키', '칸 고르기'], [`1~${Math.max(1, parts.length)}`, '부품 고르기'], ['Space', '놓기'], ['Shift', '미노로']];
+  }
+
   function refresh() {
+    if (tut) tut.render(tutBox);
+    else tutBox.hidden = true;
     modeBar.innerHTML = '';
     for (const [m, label] of [['mino', '미노'], ['part', '부품']] as const) modeBar.append(el('span', 'mode' + (mode === m ? ' on' : ''), label));
-    modeBar.append(el('span', 'dim', '  Shift 미노↔부품 · R 실행 · Esc 목록'));
+    modeBar.append(el('span', 'dim', '  Shift 미노↔부품 · ? 전체 키'));
 
     const price = play.price();
     priceBox.innerHTML = '';
@@ -230,12 +290,14 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       if (here) selBox.append(el('div', 'dim', `이 칸: ${PART_NAMES[here.type]}${here.type === 'switch' ? ` (시작 ${here.start})` : ''}${play.isFixedCell(cursor.x, cursor.y) ? ' · 고정' : ''}`));
     }
 
+    renderHints(hints, hintPairs());
+    keysHead.hidden = keysBox.hidden = !helpOpen;
     keysBox.innerHTML = '';
     const rows: [string, string][] =
       mode === 'mino'
         ? [['1~7', '모양 고르기(나타남)'], ['Q / E', '변형'], ['← →', '이동'], ['↓', '한 칸 내리기'], ['X / Z', '회전'], ['Space', '떨어뜨리기'], ['Delete', '마지막 미노 지우기']]
-        : [['숫자', '부품'], ['방향키', '커서'], ['Space', '놓기'], ['X / Z', '스위치 공통 갈래'], ['A / B / C', '스위치 시작 상태'], ['Delete', '부품 지우기']];
-    rows.push(['Shift', '미노 ↔ 부품'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시'], ['R', '실행 / 리셋'], ['Esc', '레벨 목록']);
+        : [['숫자', '부품'], ['방향키', '커서'], ['Space', '놓기'], ['X / Z', '스위치 공통 갈래'], ['A / B', '스위치 시작 상태'], ['Delete', '부품 지우기']];
+    rows.push(['Shift', '미노 ↔ 부품 (떼면 바뀜)'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시'], ['R', '실행 / 리셋'], ['Esc', '레벨 목록'], ['? / H', '이 목록 열고 닫기'], ['N', '안내 다음 / 다시 보기']);
     for (const [kk, what] of rows) {
       const row = el('div', 'krow');
       row.append(el('kbd', '', kk), el('span', '', what));
@@ -249,6 +311,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     if (!runner && play.active) {
       const r = play.tick(t);
       if (r) {
+        if (r.ok) tev('drop');
         res(r, '놓음');
         refresh();
       }
@@ -270,6 +333,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       switchState: (x, y) => sim?.switchStateAt(x, y) ?? play.board.partAt(x, y)?.start,
       locked: (x, y) => sim?.isCellLocked(x, y) ?? false,
       gearAngle: (x, y) => runner?.gearAngleAt(play.board, x, y) ?? 0,
+      switchTurn: (x, y) => runner?.switchTurnAt(play.board, x, y) ?? 0,
       pressed: runner?.pressed(t) ?? new Set(),
       floating: a && !runner ? { cells: play.stack.cellsOf(a), x: a.x, y: a.y, ok: true } : null,
       ghost: g && !runner ? { cells: play.stack.cellsOf(g), x: g.x, y: g.y, ok: true } : null,
@@ -290,6 +354,13 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   w.__hamster = { screen: 'level', play, get runner() { return runner; }, get message() { return message; } };
   return {
     key,
+    keyUp(e: KeyboardEvent) {
+      if (e.key !== 'Shift' || !shiftAlone) return;
+      shiftAlone = false;
+      mode = mode === 'mino' ? 'part' : 'mino';
+      tev(`mode:${mode}`);
+      refresh();
+    },
     dispose() {
       alive = false;
     },

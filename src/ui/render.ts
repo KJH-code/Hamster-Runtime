@@ -1,7 +1,7 @@
 import type { Board } from '../core/board';
 import type { Links } from '../core/links';
 import { activeArm, switchArms } from '../core/parts';
-import { binCount, BIN_WIDTH, E, N, popcount, S, SIDE_LIST, type Cell, type Part, type ShapeCell, type Sides, type SwitchState } from '../core/types';
+import { binCount, BIN_WIDTH, E, N, popcount, S, SIDE_LIST, sidesOf, type Cell, type Part, type ShapeCell, type Sides, type SwitchState } from '../core/types';
 
 export const CELL = 40;
 export const TOP_ROWS = 1;
@@ -117,6 +117,8 @@ export interface PartDrawOpts {
   link?: Sides;
   /** 부품이 놓인 칸이 튜브 끝일 때 막힌 변 (마개 그림 위치) */
   plugSide?: Sides;
+  /** 스위치 관의 남은 회전 (라디안, 애니메이션) */
+  turn?: number;
 }
 
 export function drawPart(ctx: CanvasRenderingContext2D, part: Part, px: number, py: number, size: number, o: PartDrawOpts = {}) {
@@ -153,36 +155,40 @@ export function drawPart(ctx: CanvasRenderingContext2D, part: Part, px: number, 
       ctx.fillText(part.dir === 1 ? '↻' : '↺', cx, cy + 1);
       break;
     case 'switch': {
+      // ㄱ자 관: 공통 갈래 ↔ 열린 갈래. 상태가 바뀔 때는 기어와 같은 방향으로 90° 돌아간다 (o.turn = 남은 회전)
       const arms = switchArms(part.arms!, part.common!);
       const open = activeArm(part, o.state ?? 'A');
-      // 닫힌 갈래: 어둡게 + 빨간 막대
-      for (const a of arms) {
-        if (a === open) continue;
-        arm(ctx, cx, cy, size, a, C.tubeDim, '#2a2118');
-        const [vx, vy] = vec(a);
-        ctx.strokeStyle = C.locked;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        const bx = cx + vx * size * 0.38;
-        const by = cy + vy * size * 0.38;
-        ctx.moveTo(bx - vy * size * 0.18, by - vx * size * 0.18);
-        ctx.lineTo(bx + vy * size * 0.18, by + vx * size * 0.18);
-        ctx.stroke();
+      // 분기점의 다른 갈래: 어두운 막다른 토막
+      for (const a of sidesOf(o.link ?? part.arms!)) {
+        if (a === part.common || a === open) continue;
+        arm(ctx, cx, cy, size, a, C.tubeDim, '#2a2118', 0.5);
       }
-      arm(ctx, cx, cy, size, part.common!, C.tube, C.tubeEdge);
-      arm(ctx, cx, cy, size, open, C.tube, C.tubeEdge);
-      // 공통 갈래 표시: 흰 점
+      drawGear(ctx, cx, cy, size * 0.44, o.angle ?? 0, red ? C.locked : C.switchGear, red ? '#7a1d20' : C.switchEdge);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(o.turn ?? 0);
+      for (const a of [part.common!, open]) arm(ctx, 0, 0, size, a, C.tube, C.tubeEdge, 0.5);
+      ctx.fillStyle = C.tubeEdge;
+      ctx.beginPath();
+      ctx.arc(0, 0, size * 0.17, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = C.tube;
+      ctx.beginPath();
+      ctx.arc(0, 0, size * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      // 공통 갈래 표시: 흰 점 (회전과 상관없이 제자리)
       const [vx, vy] = vec(part.common!);
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(cx + vx * size * 0.38, cy + vy * size * 0.38, size * 0.07, 0, Math.PI * 2);
+      ctx.arc(cx + vx * size * 0.4, cy + vy * size * 0.4, size * 0.07, 0, Math.PI * 2);
       ctx.fill();
-      drawGear(ctx, cx, cy, size * 0.3, o.angle ?? 0, red ? C.locked : C.switchGear, red ? '#7a1d20' : C.switchEdge);
+      // 상태 글자: 구석
       ctx.fillStyle = '#ffffff';
-      ctx.font = `bold ${Math.round(size * 0.28)}px system-ui, sans-serif`;
+      ctx.font = `bold ${Math.round(size * 0.24)}px system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(o.state ?? 'A', cx, cy + 1);
+      ctx.fillText(arms.length ? (o.state ?? 'A') : '?', px + size * 0.82, py + size * 0.82);
       break;
     }
     case 'plug': {
@@ -215,6 +221,8 @@ export interface View {
   switchState: (x: number, y: number) => SwitchState | undefined;
   locked: (x: number, y: number) => boolean;
   gearAngle: (x: number, y: number) => number;
+  /** 스위치 관이 아직 덜 돈 각도 (없으면 0) */
+  switchTurn?: (x: number, y: number) => number;
   pressed: Set<string>;
   floating: Floating | null;
   cursor: { x: number; y: number } | null;
@@ -317,6 +325,8 @@ export function render(ctx: CanvasRenderingContext2D, v: View) {
           angle: v.gearAngle(x, y),
           locked: v.locked(x, y),
           state: v.switchState(x, y),
+          turn: v.switchTurn?.(x, y) ?? 0,
+          link: links.link[i]!,
           pressed: v.pressed.has(`${x},${y}`),
           plugSide: c.kind === 'tube' && c.end ? oppositeOf(c.inner) : N,
         });

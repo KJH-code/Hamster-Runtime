@@ -11,7 +11,7 @@ import type { PriceTable } from '../data/prices';
 import { Board, findDef } from './board';
 import { QueueRun, type QueueItem, type Tally } from './hamster';
 import { computeLinks } from './links';
-import { partRuleError, switchArms } from './parts';
+import { partRuleError, validCommon } from './parts';
 import { totalPrice, type Fixed } from './price';
 import { srsPiece } from './srs';
 import { Stack } from './stack';
@@ -63,8 +63,8 @@ export interface Level {
   solution?: Layout;
 }
 
-export const BUDGET_MARGIN_PERCENT = 25;
-/** 예산 = 참조 풀이 가격 + 25% (올림) */
+export const BUDGET_MARGIN_PERCENT = 100;
+/** 예산 = 참조 풀이 가격 × 2 (올림) */
 export function budgetFromReference(price: number, marginPercent = BUDGET_MARGIN_PERCENT): number {
   return Math.ceil((price * (100 + marginPercent)) / 100);
 }
@@ -121,7 +121,7 @@ function parsePart(v: unknown, what: string): LevelPart {
     if (typeof o.common !== 'string' || !(o.common in SIDE_OF)) fail(`${what}.common 는 "N" "E" "S" "W" 중 하나`);
     p.common = o.common as SideName;
     const st = o.start ?? 'A';
-    if (!SWITCH_STATES.includes(st as SwitchState)) fail(`${what}.start 는 "A" "B" "C" 중 하나`);
+    if (!SWITCH_STATES.includes(st as SwitchState)) fail(`${what}.start 는 "A" 또는 "B"`);
     p.start = st as SwitchState;
   }
   return p;
@@ -237,9 +237,8 @@ export function placeLevelPart(board: Board, lp: LevelPart): string | null {
   if (err) return `(${lp.x},${lp.y}) ${err}`;
   const p = toPart(lp, board);
   if (p.type === 'switch') {
-    const arms = switchArms(p.arms!, p.common!);
-    if (!(p.arms! & p.common!)) return `(${lp.x},${lp.y}) 스위치 공통 갈래 ${lp.common} 가 분기점의 갈래가 아니다`;
-    if (SWITCH_STATES.indexOf(p.start!) >= arms.length) return `(${lp.x},${lp.y}) 스위치에 ${p.start} 갈래가 없다`;
+    if (!validCommon(p.arms!, p.common!))
+      return `(${lp.x},${lp.y}) 스위치 공통 갈래 ${lp.common} 는 쓸 수 없다 (양옆 직각 갈래가 둘 다 있어야 한다)`;
   }
   board.parts.set(board.idx(lp.x, lp.y), p);
   return null;

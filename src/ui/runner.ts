@@ -91,6 +91,13 @@ export class Runner {
     return n === undefined ? 0 : (this.gearAngle.get(n) ?? 0);
   }
 
+  /** 스위치 관이 아직 덜 돈 각도: 기어 한 칸(π/4)마다 관은 90°(π/2) */
+  switchTurnAt(board: Board, x: number, y: number): number {
+    const n = this.run.sim?.nodeOfCell.get(board.idx(x, y));
+    if (n === undefined) return 0;
+    return ((this.gearAngle.get(n) ?? 0) - (this.gearTarget.get(n) ?? 0)) * 2;
+  }
+
   pressed(t: number): Set<string> {
     const s = new Set<string>();
     for (const [k, until] of this.pressedUntil) if (until > t) s.add(k);
@@ -120,5 +127,16 @@ export function sizeCanvas(canvas: HTMLCanvasElement, w: number, h: number): Can
 /** 화면 하나: 키 처리기와 정리 함수 */
 export interface Screen {
   key(e: KeyboardEvent): void;
+  keyUp?(e: KeyboardEvent): void;
   dispose(): void;
+}
+
+/** 판 아래 '지금 쓸 키' 줄 */
+export function renderHints(box: HTMLElement, pairs: [string, string][]) {
+  box.innerHTML = '';
+  for (const [k, what] of pairs) {
+    const chip = el('span', 'hint');
+    chip.append(el('kbd', '', k), el('span', '', what));
+    box.append(chip);
+  }
 }

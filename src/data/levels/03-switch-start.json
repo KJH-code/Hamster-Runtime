@@ -1,7 +1,7 @@
 {
   "id": "03-switch-start",
   "name": "선로 전환",
-  "mechanic": "스위치는 분기점에서 공통 갈래(흰 점)와 열린 갈래 하나만 잇는다. 시작 상태로 열린 갈래를 고른다.",
+  "mechanic": "스위치는 분기점에 끼우는 ㄱ자 관이다. 흰 점(공통 갈래)과 직각 갈래 하나를 잇고, 시작 방향을 고른다.",
   "w": 8,
   "h": 9,
   "queue": [
@@ -17,10 +17,10 @@
     { "red": 0, "blue": 1 }
   ],
   "allowed": {
-    "minos": [],
-    "parts": ["switch"]
+    "minos": ["I-tube", "I-empty", "O-tube", "O-empty", "T-tube-a", "T-tube-b", "T-empty", "S-tube", "S-empty", "Z-tube", "Z-empty", "L-tube", "L-empty", "J-tube", "J-empty"],
+    "parts": ["plug", "switch"]
   },
-  "budget": 4,
+  "budget": 6,
   "fixed": {
     "minos": [
       { "id": "J-tube", "r": 0, "x": 0, "y": 2 },
@@ -33,7 +33,7 @@
   "solution": {
     "minos": [],
     "parts": [
-      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "B" }
+      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "A" }
     ]
   }
 }

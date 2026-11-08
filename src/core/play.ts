@@ -24,10 +24,10 @@ import {
   type LevelMino,
 } from './level';
 import { computeLinks } from './links';
-import { cycleCommon, partRuleError, switchArms } from './parts';
+import { cycleCommon, defaultCommon, partRuleError } from './parts';
 import { totalPrice } from './price';
 import { Stack, type Active } from './stack';
-import { SWITCH_STATES, type Dir, type Part, type PartType, type SwitchState } from './types';
+import type { Dir, Part, PartType, SwitchState } from './types';
 
 export type Result = { ok: true } | { ok: false; reason: string };
 const OK: Result = { ok: true };
@@ -203,7 +203,7 @@ export class LevelPlay {
       if (type === 'motor') part.dir = dir ?? 1;
       if (type === 'switch') {
         part.arms = links.link[i]!;
-        part.common = this.board.cells[i]!.inner;
+        part.common = defaultCommon(part.arms, this.board.cells[i]!.inner);
         part.start = 'A';
       }
       this.board.parts.set(i, part);
@@ -225,8 +225,9 @@ export class LevelPlay {
     return this.edit(() => {
       const p = this.mySwitch(x, y);
       if (typeof p === 'string') return fail(p);
-      p.common = cycleCommon(p.arms!, p.common!, dir);
-      if (SWITCH_STATES.indexOf(p.start!) >= switchArms(p.arms!, p.common).length) p.start = 'A';
+      const next = cycleCommon(p.arms!, p.common!, dir);
+      if (next === p.common) return fail('이 분기점에서는 공통 갈래를 다른 쪽으로 돌릴 수 없다 (양옆 직각 갈래가 있어야 한다)');
+      p.common = next;
       return OK;
     });
   }
@@ -234,7 +235,6 @@ export class LevelPlay {
     return this.edit(() => {
       const p = this.mySwitch(x, y);
       if (typeof p === 'string') return fail(p);
-      if (SWITCH_STATES.indexOf(state) >= switchArms(p.arms!, p.common!).length) return fail(`이 스위치에는 ${state} 갈래가 없다`);
       p.start = state;
       return OK;
     });
