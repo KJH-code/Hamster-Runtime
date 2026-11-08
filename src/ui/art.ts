@@ -688,3 +688,17 @@ export function renderArt(ctx: CanvasRenderingContext2D, t: Theme, v: ArtView) {
 }
 
 
+
+/** 패널용 작은 햄스터 그림 (목도리 색으로 빨강/파랑) */
+export function hamsterIcon(color: number, px = 28): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  const dpr = window.devicePixelRatio || 1;
+  c.width = px * dpr;
+  c.height = px * dpr;
+  c.style.width = `${px}px`;
+  c.style.height = `${px}px`;
+  const ctx = c.getContext('2d')!;
+  ctx.scale(dpr, dpr);
+  drawHamster(ctx, THEME, px / 2, px * 0.56, px * 1.15, color);
+  return c;
+}

@@ -8,7 +8,7 @@ import { PART_NAMES } from '../core/parts';
 import { LevelPlay } from '../core/play';
 import type { Dir, PartType } from '../core/types';
 import { MINOS, PIECE_ORDER, type PieceLetter } from '../data/minos';
-import { artSize, renderArt, THEME } from './art';
+import { artSize, hamsterIcon, renderArt, THEME } from './art';
 import { el, renderHints, Runner, sizeCanvas, type Screen } from './runner';
 import { bestPrice, recordClear } from './storage';
 import { LEVEL_TUTORIALS, Tutorial } from './tutorial';
@@ -62,12 +62,25 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   const title = el('h1', '', `${o.number ? `${o.number}. ` : '시험 플레이 · '}${lv.name}`);
   const mech = el('div', 'mech', lv.mechanic);
   const priceBox = el('div', 'price');
-  const queueBox = el('div', 'queue');
-  const goalBox = el('div', 'tally');
+  const queueBox = el('div', 'qicons');
+  const goalBox = el('div', 'goals');
   const selBox = el('div', 'sel');
+  const card = (...kids: HTMLElement[]) => {
+    const c = el('div', 'card');
+    c.append(...kids);
+    return c;
+  };
   const keysBox = el('div', 'keys');
   const keysHead = el('h2', '', '전체 키 (? 로 닫기)');
-  panel.append(title, mech, el('h2', '', '가격'), priceBox, el('h2', '', '대기열'), queueBox, el('h2', '', '통 조건'), goalBox, el('h2', '', '선택'), selBox, keysHead, keysBox);
+  panel.append(
+    card(title, mech),
+    card(el('h2', '', '가격 / 예산'), priceBox),
+    card(el('h2', '', '대기열 — 이 순서로 떨어진다'), queueBox),
+    card(el('h2', '', '통 목표'), goalBox),
+    selBox,
+    keysHead,
+    keysBox,
+  );
 
   const defsOf = (p: PieceLetter) => MINOS.filter((d) => d.piece === p && lv.allowed.minos.includes(d.id));
   const currentDef = () => {
@@ -253,30 +266,47 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
 
     const price = play.price();
     priceBox.innerHTML = '';
-    const pr = el('div', 'pricebig' + (price > lv.budget ? ' over' : ''), `${price} / 예산 ${lv.budget}`);
-    priceBox.append(pr);
+    const over = price > lv.budget;
+    priceBox.append(el('div', 'pricebig' + (over ? ' over' : ''), `${price} / ${lv.budget}`));
+    const bar = el('div', 'bar');
+    const fill = el('div', 'fill' + (over ? ' over' : price > lv.budget * 0.75 ? ' warn' : ''));
+    fill.style.width = `${Math.min(100, lv.budget ? (price / lv.budget) * 100 : price ? 100 : 0)}%`;
+    bar.append(fill);
+    priceBox.append(bar);
     const best = o.record ? bestPrice(lv.id) : undefined;
-    if (best !== undefined) priceBox.append(el('div', 'dim', `최저 기록 ${best}`));
+    if (best !== undefined) priceBox.append(el('div', 'dim', `★ 최저 기록 ${best}`));
 
     queueBox.innerHTML = '';
     const r = runner?.run;
     lv.queue.forEach((q, i) => {
       const doneQ = r ? i < r.results.length : false;
       const cur = r && !r.done && i === r.index;
-      const row = el('div', 'qrow' + (cur ? ' cur' : '') + (doneQ ? ' done' : ''));
-      const dot = el('span', 'dot');
-      dot.style.background = THEME.scarf[q.color === 'red' ? 0 : 1]!;
-      row.append(el('span', 'qi', `${i + 1}`), dot, el('span', '', `${q.color === 'red' ? '빨강' : '파랑'} · ${q.inject === 'left' ? '왼쪽' : '오른쪽'}`));
-      queueBox.append(row);
+      const item = el('div', 'qitem' + (cur ? ' cur' : '') + (doneQ ? ' done' : ''));
+      item.title = `${i + 1}번 ${q.color === 'red' ? '빨강' : '파랑'} ${q.inject === 'left' ? '왼쪽' : '오른쪽'}`;
+      item.append(hamsterIcon(q.color === 'red' ? 0 : 1), el('span', 'qin', q.inject === 'left' ? '◀' : '▶'));
+      queueBox.append(item);
     });
 
     goalBox.innerHTML = '';
+    const scarf = (col: number, n: number) => {
+      const s = el('span', 'gc');
+      const d = el('span', 'dot');
+      d.style.background = THEME.scarf[col]!;
+      s.append(d, el('span', '', String(n)));
+      return s;
+    };
+    let empties = 0;
     lv.bins.forEach((g, i) => {
+      if (g.red === 0 && g.blue === 0) return void empties++;
       const got = r?.tally.bins[i];
+      const doneRun = !!(got && r!.done);
       const ok = got && got[0] === g.red && got[1] === g.blue;
-      const t = `통 ${i}: 빨강 ${g.red} · 파랑 ${g.blue}` + (got && r!.done ? `  (지금 ${got[0]} · ${got[1]}) ${ok ? '✓' : '✗'}` : '');
-      goalBox.append(el('div', got && r!.done ? (ok ? 'ok' : 'bad') : '', t));
+      const chip = el('div', 'goal' + (doneRun ? (ok ? ' ok' : ' bad') : ''));
+      chip.append(el('span', 'gname', `통 ${i}`), scarf(0, g.red), scarf(1, g.blue));
+      if (doneRun) chip.append(el('span', '', ok ? '✓' : '✗'));
+      goalBox.append(chip);
     });
+    if (empties) goalBox.append(el('div', 'dim', '나머지 통은 비워 둔다'));
 
     selBox.innerHTML = '';
     if (mode === 'mino') {
