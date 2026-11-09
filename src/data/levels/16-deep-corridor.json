@@ -1,0 +1,46 @@
+{
+  "id": "16-deep-corridor",
+  "name": "안쪽부터",
+  "mechanic": "낮은 처마 밑 긴 통로. 미노는 왼쪽 굴뚝으로만 들어간다 — 안쪽부터 밀어 넣는다.",
+  "w": 13,
+  "h": 10,
+  "queue": [
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "left" },
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "left" }
+  ],
+  "bins": [
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 2, "blue": 2 }
+  ],
+  "allowed": {
+    "minos": ["I-tube", "I-empty", "O-tube", "O-empty", "T-tube-a", "T-tube-b", "T-empty", "S-tube", "S-empty", "Z-tube", "Z-empty", "L-tube", "L-empty", "J-tube", "J-empty"],
+    "parts": ["sensor", "gear", "motor", "switch", "plug"]
+  },
+  "budget": 16,
+  "fixed": {
+    "minos": [
+      { "id": "I-empty", "r": 0, "x": 3, "y": 5 },
+      { "id": "O-empty", "r": 0, "x": 7, "y": 6 },
+      { "id": "I-empty", "r": 0, "x": 9, "y": 5 },
+      { "id": "I-empty", "r": 1, "x": 9, "y": 0 },
+      { "id": "O-empty", "r": 0, "x": 11, "y": 4 }
+    ],
+    "parts": []
+  },
+  "solution": {
+    "minos": [
+      { "id": "S-tube", "r": 0, "x": 9, "y": 8 },
+      { "id": "Z-tube", "r": 0, "x": 6, "y": 8 },
+      { "id": "S-tube", "r": 0, "x": 3, "y": 8 },
+      { "id": "J-tube", "r": 0, "x": 0, "y": 8 }
+    ],
+    "parts": []
+  }
+}

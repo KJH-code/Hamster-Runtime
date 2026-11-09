@@ -1,0 +1,55 @@
+{
+  "id": "17-freeze",
+  "name": "그 자리에 멈춰",
+  "mechanic": "두 투입구. 잠긴 기어 줄은 그 순간의 길을 끝까지 지킨다.",
+  "w": 8,
+  "h": 9,
+  "queue": [
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "left" },
+    { "color": "blue", "inject": "right" },
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "left" }
+  ],
+  "bins": [
+    { "red": 2, "blue": 1 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 1 },
+    { "red": 0, "blue": 1 }
+  ],
+  "allowed": {
+    "minos": ["I-tube", "I-empty", "O-tube", "O-empty", "T-tube-a", "T-tube-b", "T-empty", "S-tube", "S-empty", "Z-tube", "Z-empty", "L-tube", "L-empty", "J-tube", "J-empty"],
+    "parts": ["sensor", "gear", "motor", "switch", "plug"]
+  },
+  "budget": 60,
+  "fixed": {
+    "minos": [
+      { "id": "L-tube", "r": 2, "x": 0, "y": 5 },
+      { "id": "J-tube", "r": 2, "x": 3, "y": 5 },
+      { "id": "O-empty", "r": 0, "x": 1, "y": 4 }
+    ],
+    "parts": []
+  },
+  "solution": {
+    "minos": [
+      { "id": "L-empty", "r": 2, "x": 0, "y": 2 },
+      { "id": "I-tube", "r": 1, "x": 1, "y": 2 },
+      { "id": "J-tube", "r": 0, "x": 0, "y": 1 },
+      { "id": "O-empty", "r": 0, "x": 4, "y": 4 },
+      { "id": "I-empty", "r": 1, "x": 4, "y": 5 },
+      { "id": "I-tube", "r": 1, "x": 5, "y": 5 }
+    ],
+    "parts": [
+      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "A" },
+      { "x": 4, "y": 6, "type": "sensor" },
+      { "x": 4, "y": 5, "type": "motor", "dir": "ccw" },
+      { "x": 3, "y": 5, "type": "gear" },
+      { "x": 1, "y": 6, "type": "sensor" },
+      { "x": 1, "y": 5, "type": "motor", "dir": "ccw" },
+      { "x": 2, "y": 5, "type": "gear" },
+      { "x": 5, "y": 5, "type": "gear" },
+      { "x": 6, "y": 5, "type": "motor", "dir": "ccw" },
+      { "x": 7, "y": 5, "type": "sensor" }
+    ]
+  }
+}
