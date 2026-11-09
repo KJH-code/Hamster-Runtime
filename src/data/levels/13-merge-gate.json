@@ -1,0 +1,47 @@
+{
+  "id": "13-merge-gate",
+  "name": "합류 문",
+  "mechanic": "두 길이 스위치 하나에서 합쳐진다. 문은 한쪽만 열린다.",
+  "w": 7,
+  "h": 8,
+  "queue": [
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "right" },
+    { "color": "blue", "inject": "left" },
+    { "color": "red", "inject": "right" },
+    { "color": "red", "inject": "right" }
+  ],
+  "bins": [
+    { "red": 0, "blue": 0 },
+    { "red": 3, "blue": 2 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 }
+  ],
+  "allowed": {
+    "minos": ["I-tube", "I-empty", "O-tube", "O-empty", "T-tube-a", "T-tube-b", "T-empty", "S-tube", "S-empty", "Z-tube", "Z-empty", "L-tube", "L-empty", "J-tube", "J-empty"],
+    "parts": ["sensor", "gear", "motor", "switch", "plug"]
+  },
+  "budget": 30,
+  "fixed": {
+    "minos": [
+      { "id": "J-tube", "r": 0, "x": 0, "y": 2 },
+      { "id": "L-tube", "r": 0, "x": 4, "y": 2 },
+      { "id": "I-tube", "r": 1, "x": 1, "y": 3 },
+      { "id": "O-empty", "r": 0, "x": 5, "y": 0 }
+    ],
+    "parts": []
+  },
+  "solution": {
+    "minos": [
+      { "id": "I-empty", "r": 0, "x": 2, "y": 1 }
+    ],
+    "parts": [
+      { "x": 3, "y": 3, "type": "switch", "common": "S", "start": "A" },
+      { "x": 2, "y": 3, "type": "sensor" },
+      { "x": 4, "y": 3, "type": "sensor" },
+      { "x": 2, "y": 2, "type": "motor", "dir": "cw" },
+      { "x": 4, "y": 2, "type": "motor", "dir": "ccw" },
+      { "x": 3, "y": 2, "type": "gear" }
+    ]
+  }
+}
