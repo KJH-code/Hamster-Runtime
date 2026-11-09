@@ -153,3 +153,11 @@ canvas.board { border: 1px solid #2c3140; border-radius: 14px; }
 .app:not(.menu) { align-items: flex-start; }
 .app:not(.menu) .panel { width: 340px; max-height: calc(100vh - 32px); overflow-y: auto; position: sticky; top: 16px; padding-right: 4px; }
 .left { width: auto; }
+/* 안내가 가리키는 팔레트 칸 */
+.palcell.pulse { border-color: #ffe14a; animation: palpulse 0.9s ease-in-out infinite; }
+.palcell.pulse::after { content: '◀ 이것'; position: absolute; top: 2px; right: 6px; font: 700 11px system-ui, sans-serif; color: #ffe14a; }
+@keyframes palpulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 225, 74, 0.0); } 50% { box-shadow: 0 0 0 5px rgba(255, 225, 74, 0.55); } }
+/* 데모 단계 목록 */
+.demosteps { margin: 8px 0 0; padding-left: 22px; display: grid; gap: 6px; color: #8d95a8; }
+.demosteps li.on { color: #ffe14a; font-weight: 700; }
+.demosteps li.done { color: #c9d1e3; }

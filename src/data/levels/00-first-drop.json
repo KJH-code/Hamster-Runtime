@@ -1,0 +1,27 @@
+{
+  "id": "00-first-drop",
+  "name": "첫 미노",
+  "mechanic": "미노를 떨어뜨려 투입구에서 목표 통까지 햄스터 길을 만든다.",
+  "w": 7,
+  "h": 8,
+  "queue": [
+    { "color": "red", "inject": "left" }
+  ],
+  "bins": [
+    { "red": 0, "blue": 0 },
+    { "red": 1, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 }
+  ],
+  "allowed": {
+    "minos": ["L-tube"],
+    "parts": []
+  },
+  "budget": 4,
+  "solution": {
+    "minos": [
+      { "id": "L-tube", "r": 1, "x": -1, "y": 5 }
+    ],
+    "parts": []
+  }
+}

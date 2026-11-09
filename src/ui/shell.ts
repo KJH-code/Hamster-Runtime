@@ -6,7 +6,9 @@ import { startSandbox } from './app';
 import { startLevel } from './level';
 import { startMenu } from './menu';
 import type { Screen } from './runner';
-import { isUnlocked } from './storage';
+import { bestPrice, isUnlocked } from './storage';
+import { startDemo } from './demo';
+import { DEMO_LEVEL } from './tutorial';
 import { newSandboxState } from './levelEditor';
 import { startReplay } from './replay';
 import { startAllClear } from './allclear';
@@ -25,8 +27,15 @@ export function startShell(root: HTMLElement) {
   function allClear() {
     show(startAllClear(root, LEVELS, menu));
   }
+  /** 1번에 처음 들어가면 데모 먼저 (이번 접속에서 한 번) */
+  let demoShown = false;
   function openLevel(i: number) {
     menuSel = i;
+    const lv = LEVELS[i]!;
+    if (lv.id === DEMO_LEVEL && !demoShown && bestPrice(lv.id) === undefined) {
+      demoShown = true;
+      return show(startDemo(root, () => openLevel(i)));
+    }
     const next = i + 1 < LEVELS.length ? () => (isUnlocked(ids, i + 1) ? openLevel(i + 1) : menu()) : undefined;
     const last = i === LEVELS.length - 1 ? allClear : undefined;
     show(startLevel(root, { level: LEVELS[i]!, number: i + 1, record: true, onExit: menu, onNext: next, onAllClear: last }));
