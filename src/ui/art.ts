@@ -464,7 +464,8 @@ export interface ArtView {
 
 export interface Overlay {
   glow: { x: number; y: number }[];
-  bubble: { text: string; keys: [string, string][]; ax: number; ay: number; below?: boolean } | null;
+  /** side: 빛나는 자리를 가리지 않게 말풍선을 판 한쪽 가장자리로 비켜 세운다 */
+  bubble: { text: string; keys: [string, string][]; ax: number; ay: number; below?: boolean; side?: 'left' | 'right'; warn?: boolean } | null;
 }
 
 export const CELL = 40;
@@ -514,6 +515,10 @@ export function renderArt(ctx: CanvasRenderingContext2D, t: Theme, v: ArtView) {
     const goal = v.goals?.[i];
     const counts = v.bins[i] ?? [0, 0];
     const met = goal && counts[0] === goal[0] && counts[1] === goal[1];
+    // 목표가 없는(비워 둘) 통은 흐리게, 목표 통만 또렷하게
+    const target = !goal || goal[0]! + goal[1]! > 0;
+    ctx.save();
+    if (!target) ctx.globalAlpha = 0.38;
     ctx.fillStyle = goal && v.failFlash && !met ? 'rgba(229,72,77,0.45)' : t.bin;
     ctx.strokeStyle = goal && v.bins.length ? (met ? '#53c26b' : '#e5484d') : t.binEdge;
     ctx.lineWidth = 2;
@@ -524,7 +529,7 @@ export function renderArt(ctx: CanvasRenderingContext2D, t: Theme, v: ArtView) {
     const narrow = w < BIN_WIDTH * s;
     ctx.fillStyle = t.text;
     ctx.font = '11px system-ui, sans-serif';
-    if (!narrow) ctx.fillText(goal ? `목표` : `통 ${i}`, bx + w / 2, by + 18 - bounce);
+    if (!narrow) ctx.fillText(goal ? (target ? '목표' : '비워 둠') : `통 ${i}`, bx + w / 2, by + 18 - bounce);
     // 색별: 목도리 점 + 지금/목표 (한 칸짜리 통은 숫자만 작게)
     [0, 1].forEach((col) => {
       const yy = by + (narrow ? 22 : 38) + col * (narrow ? 22 : 18) - bounce;
@@ -537,6 +542,7 @@ export function renderArt(ctx: CanvasRenderingContext2D, t: Theme, v: ArtView) {
       const txt = goal ? `${counts[col]}/${goal[col]}` : String(counts[col]);
       ctx.fillText(txt, narrow ? bx + w / 2 : bx + w / 2 + 6, narrow ? yy + 3 : yy + 1);
     });
+    ctx.restore();
   }
 
   // 나무 블록
@@ -773,22 +779,29 @@ export function drawOverlay(ctx: CanvasRenderingContext2D, t: Theme, o: Overlay,
   if (!b) return;
   const W = board.w * s;
   const H = (board.h + TOP + BIN_ROWS) * s;
-  const maxW = Math.min(W - 24, 300);
+  const maxW = b.side ? Math.min(W * 0.6, 300) : Math.min(W - 24, 300);
   ctx.font = 'bold 14px system-ui, sans-serif';
   const lines = wrapText(ctx, b.text, maxW - 20);
-  ctx.font = 'bold 12px system-ui, sans-serif';
+  // 키 칩: 크게, 누를 때까지 깜빡. 한 줄에 안 들어가면 줄을 바꾼다
+  ctx.font = 'bold 16px system-ui, sans-serif';
   const chips = b.keys.map(([k, what]) => {
-    const kw = ctx.measureText(k).width + 12;
-    ctx.font = '12px system-ui, sans-serif';
+    const kw = Math.max(30, ctx.measureText(k).width + 16);
+    ctx.font = '13px system-ui, sans-serif';
     const ww = ctx.measureText(what).width;
-    ctx.font = 'bold 12px system-ui, sans-serif';
-    return { k, what, kw, w: kw + 4 + ww };
+    ctx.font = 'bold 16px system-ui, sans-serif';
+    return { k, what, kw, w: kw + 6 + ww };
   });
-  const chipRow = chips.reduce((a, c) => a + c.w + 12, 0);
+  const chipLines: (typeof chips)[] = [];
+  for (const c of chips) {
+    const cur = chipLines[chipLines.length - 1];
+    if (cur && cur.reduce((a, d) => a + d.w + 12, 0) + c.w <= maxW - 20) cur.push(c);
+    else chipLines.push([c]);
+  }
+  const chipRow = Math.max(0, ...chipLines.map((l) => l.reduce((a, c) => a + c.w + 12, 0) - 12));
   ctx.font = 'bold 14px system-ui, sans-serif';
   const textW = Math.max(...lines.map((l) => ctx.measureText(l).width));
   const bw = Math.min(maxW, Math.max(textW, chipRow) + 20);
-  const bh = lines.length * 19 + (chips.length ? 30 : 0) + 16;
+  const bh = lines.length * 19 + chipLines.length * 34 + (chips.length ? 4 : 0) + 16;
   const ax = b.ax * s;
   const ay = OY + b.ay * s;
   // 기준점 위에 두되, 자리가 없으면 아래
@@ -799,7 +812,7 @@ export function drawOverlay(ctx: CanvasRenderingContext2D, t: Theme, o: Overlay,
     up = false;
   }
   by = Math.min(by, H - bh - 4);
-  const bx = Math.max(6, Math.min(W - bw - 6, ax - bw / 2));
+  const bx = b.side === 'right' ? W - bw - 6 : b.side === 'left' ? 6 : Math.max(6, Math.min(W - bw - 6, ax - bw / 2));
   // 그림자 + 몸통 + 꼬리
   const bob = Math.sin(time / 300) * 2;
   ctx.save();
@@ -808,8 +821,8 @@ export function drawOverlay(ctx: CanvasRenderingContext2D, t: Theme, o: Overlay,
   ctx.beginPath();
   ctx.roundRect(bx + 2, by + 3, bw, bh, 12);
   ctx.fill();
-  ctx.fillStyle = '#fff7e2';
-  ctx.strokeStyle = '#e0b84a';
+  ctx.fillStyle = b.warn ? '#ffe4e0' : '#fff7e2';
+  ctx.strokeStyle = b.warn ? '#e5484d' : '#e0b84a';
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.roundRect(bx, by, bw, bh, 12);
@@ -829,7 +842,7 @@ export function drawOverlay(ctx: CanvasRenderingContext2D, t: Theme, o: Overlay,
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
-  ctx.fillStyle = '#fff7e2';
+  ctx.fillStyle = b.warn ? '#ffe4e0' : '#fff7e2';
   ctx.fillRect(tx - 7, up ? by + bh - 3 : by + 1, 14, 3);
   // 글
   ctx.fillStyle = '#2a2116';
@@ -838,22 +851,35 @@ export function drawOverlay(ctx: CanvasRenderingContext2D, t: Theme, o: Overlay,
   ctx.font = 'bold 14px system-ui, sans-serif';
   lines.forEach((l, i) => ctx.fillText(l, bx + 10, by + 9 + i * 19));
   // 키 칩
-  let cx = bx + 10;
-  const cy = by + 9 + lines.length * 19 + 4;
-  for (const c of chips) {
-    ctx.fillStyle = '#2a2f3c';
-    ctx.beginPath();
-    ctx.roundRect(cx, cy, c.kw, 20, 5);
-    ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 12px system-ui, sans-serif';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(c.k, cx + 6, cy + 10);
-    ctx.fillStyle = '#5a4a33';
-    ctx.font = '12px system-ui, sans-serif';
-    ctx.fillText(c.what, cx + c.kw + 4, cy + 10);
-    cx += c.w + 12;
-  }
+  const glowK = 0.5 + 0.5 * Math.sin(time / 180);
+  chipLines.forEach((row, li) => {
+    let cx = bx + 10;
+    const cy = by + 9 + lines.length * 19 + 4 + li * 34;
+    for (const c of row) {
+      // 키보드 키 모양: 아래 두께 + 깜빡이는 노란 테두리
+      ctx.fillStyle = '#151820';
+      ctx.beginPath();
+      ctx.roundRect(cx, cy + 3, c.kw, 26, 6);
+      ctx.fill();
+      ctx.fillStyle = '#2a2f3c';
+      ctx.beginPath();
+      ctx.roundRect(cx, cy, c.kw, 26, 6);
+      ctx.fill();
+      ctx.strokeStyle = `rgba(255,200,40,${0.35 + 0.65 * glowK})`;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 16px system-ui, sans-serif';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center';
+      ctx.fillText(c.k, cx + c.kw / 2, cy + 13);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#5a4a33';
+      ctx.font = '13px system-ui, sans-serif';
+      ctx.fillText(c.what, cx + c.kw + 6, cy + 13);
+      cx += c.w + 12;
+    }
+  });
   ctx.restore();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

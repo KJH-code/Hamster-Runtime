@@ -6,6 +6,7 @@ import { E, W } from '../core/types';
 import { drawHamster, THEME, tubeCell } from './art';
 import { copyLink, el, shareUrl, sizeCanvas, type Screen } from './runner';
 import { bestCode, bestPrice, isUnlocked } from './storage';
+import { HIDE_PRICE } from './tutorial';
 
 const COLS = 5;
 
@@ -66,7 +67,8 @@ export function startMenu(root: HTMLElement, levels: Level[], selected: number, 
       const best = bestPrice(lv.id);
       const c = el('div', 'lcard' + (i === sel ? ' pick' : '') + (open ? '' : ' locked') + (best !== undefined ? ' cleared' : ''));
       c.append(el('div', 'lnum', open ? String(i + 1) : '🔒'), el('div', 'lname', open ? lv.name : '잠김'));
-      c.append(el('div', 'lbest', best !== undefined ? `★ ${best} / ${lv.budget}` : open ? `예산 ${lv.budget}` : ''));
+      const noPrice = HIDE_PRICE.has(lv.id);
+      c.append(el('div', 'lbest', best !== undefined ? (noPrice ? '★ 클리어' : `★ ${best} / ${lv.budget}`) : open ? (noPrice ? '처음 해 보기' : `예산 ${lv.budget}`) : ''));
       grid.append(c);
     });
     sandbox.className = 'lcard sandbox' + (sel === levels.length ? ' pick' : '');

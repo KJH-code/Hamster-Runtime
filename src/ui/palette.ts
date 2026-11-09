@@ -57,6 +57,8 @@ export interface PaletteState {
   allowedParts: PartType[];
   part: PartType | null;
   partMode: boolean;
+  /** 안내가 가리키는 모양 글자: 그 칸을 반짝인다 */
+  pulse?: string | null;
 }
 
 export function renderPalette(box: HTMLElement, s: PaletteState) {
@@ -65,8 +67,10 @@ export function renderPalette(box: HTMLElement, s: PaletteState) {
   PIECE_ORDER.forEach((letter, i) => {
     const defs = MINOS.filter((d) => d.piece === letter);
     const usable = defs.some((d) => s.allowedMinos.includes(d.id));
+    // 모양이 한두 개뿐인 입문 레벨은 쓸 수 있는 칸만 보인다
+    if (!usable && s.keyOrder.length <= 2) return;
     const on = !s.partMode && s.letter === letter;
-    const cell = el('div', 'palcell' + (on ? ' on' : '') + (usable ? '' : ' off'));
+    const cell = el('div', 'palcell' + (on ? ' on' : '') + (usable ? '' : ' off') + (s.pulse === letter ? ' pulse' : ''));
     const ki = s.keyOrder.indexOf(letter);
     cell.append(el('span', 'palkey', ki >= 0 ? String(ki + 1) : '·'));
     const row = el('div', 'palrow');
@@ -75,8 +79,8 @@ export function renderPalette(box: HTMLElement, s: PaletteState) {
     grid.append(cell);
   });
   box.append(grid);
-  const hint = el('div', 'dim', 'Q / E 로 튜브 ↔ 빈 변형');
-  box.append(hint);
+  // 변형이 하나뿐인 레벨(입문)에서는 Q / E 를 아직 말하지 않는다
+  if (s.allowedMinos.length > 1) box.append(el('div', 'dim', 'Q / E 로 튜브 ↔ 빈 변형'));
   if (s.allowedParts.length) {
     const parts = el('div', 'palparts');
     for (const t of s.allowedParts) {
