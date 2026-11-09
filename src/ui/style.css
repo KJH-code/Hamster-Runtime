@@ -135,3 +135,21 @@ canvas.board { border: 1px solid #2c3140; border-radius: 14px; }
 .crow .cbest.star { color: #ffe14a; }
 .crow .cbud { color: #9aa3b8; font-size: 12px; }
 .csum { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid #2c3140; padding-top: 8px; }
+
+/* 미노 팔레트 */
+.pal7 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.palcell { position: relative; border: 2px solid #2c3140; border-radius: 10px; padding: 14px 4px 4px; background: #161a23; }
+.palcell.on { border-color: #ffe14a; background: #26261c; }
+.palcell.off { opacity: 0.35; }
+.palkey { position: absolute; top: 2px; left: 6px; font: 700 12px system-ui, sans-serif; color: #fff4d6; }
+.palrow { display: flex; gap: 2px; justify-content: center; flex-wrap: wrap; }
+.mini { border-radius: 6px; }
+.mini.picked { outline: 2px solid #ffe14a; background: #3a3420; }
+.mini.unusable { opacity: 0.3; }
+.palparts { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 8px; }
+.hint.on kbd { background: #ffe14a; color: #1a1406; }
+
+/* 큰 판: 판은 창 높이에 맞춰 커지고, 패널은 오른쪽에서 따로 스크롤 */
+.app:not(.menu) { align-items: flex-start; }
+.app:not(.menu) .panel { width: 340px; max-height: calc(100vh - 32px); overflow-y: auto; position: sticky; top: 16px; padding-right: 4px; }
+.left { width: auto; }

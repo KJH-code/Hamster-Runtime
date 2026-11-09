@@ -365,10 +365,11 @@ export function drawPart(ctx: CanvasRenderingContext2D, t: Theme, part: Part, px
 }
 
 /** 목도리 두른 햄스터 */
-export function drawHamster(ctx: CanvasRenderingContext2D, t: Theme, hx: number, hy: number, s: number, color: number, squash = 0) {
+export function drawHamster(ctx: CanvasRenderingContext2D, t: Theme, hx: number, hy: number, s: number, color: number, squash = 0, tilt = 0) {
   const r = s * 0.36;
   ctx.save();
   ctx.translate(hx, hy);
+  ctx.rotate(tilt);
   ctx.scale(1 + squash, 1 - squash);
   // 그림자
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -445,7 +446,7 @@ export interface ArtView {
   floating: { cells: ShapeCell[]; x: number; y: number; ok: boolean } | null;
   ghost: { cells: ShapeCell[]; x: number; y: number } | null;
   cursor: { x: number; y: number } | null;
-  hamster: { x: number; y: number; color: number; shake: number; squash?: number; question?: boolean } | null;
+  hamster: { x: number; y: number; color: number; shake: number; squash?: number; tilt?: number; question?: boolean } | null;
   nextInject: 'left' | 'right' | null;
   bins: number[][];
   goals: number[][] | null;
@@ -702,7 +703,7 @@ export function renderArt(ctx: CanvasRenderingContext2D, t: Theme, v: ArtView) {
   if (v.hamster) {
     const hx = (v.hamster.x + 0.5) * s + v.hamster.shake;
     const hy = OY + (v.hamster.y + 0.5) * s;
-    drawHamster(ctx, t, hx, hy, s, v.hamster.color, v.hamster.squash ?? 0);
+    drawHamster(ctx, t, hx, hy, s, v.hamster.color, v.hamster.squash ?? 0, v.hamster.tilt ?? 0);
     if (v.hamster.question) {
       // 갸웃: 물음표 말풍선
       ctx.fillStyle = '#fff7e2';

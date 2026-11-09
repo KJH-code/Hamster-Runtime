@@ -8,7 +8,7 @@ import { checkShare } from '../core/share';
 import { LEVELS } from '../data/levels';
 import { PRICES } from '../data/prices';
 import { artSize, renderArt, THEME } from './art';
-import { el, renderHints, Runner, sizeCanvas, type Screen } from './runner';
+import { el, fitCanvas, renderHints, Runner, type Screen } from './runner';
 import { bestPrice, isUnlocked } from './storage';
 
 export interface ReplayOpts {
@@ -27,6 +27,7 @@ export function startReplay(root: HTMLElement, o: ReplayOpts): Screen {
   let gate = !!lv && bestPrice(lv.id) === undefined;
   let runner: Runner | null = null;
   let alive = true;
+  let speed = 1;
 
   root.innerHTML = '';
   root.className = 'app';
@@ -45,7 +46,9 @@ export function startReplay(root: HTMLElement, o: ReplayOpts): Screen {
     if (res.layout) applyLayout(lv, built, res.layout);
   }
   const [cw, ch] = built ? artSize(built.board) : [320, 200];
-  const ctx = sizeCanvas(canvas, cw, ch);
+  let ctx = fitCanvas(canvas, cw, ch, left);
+  const onResize = () => (ctx = fitCanvas(canvas, cw, ch, left));
+  window.addEventListener('resize', onResize);
 
   const card = (...kids: HTMLElement[]) => {
     const c = el('div', 'card');
@@ -70,7 +73,7 @@ export function startReplay(root: HTMLElement, o: ReplayOpts): Screen {
     const pairs: [string, string][] = [];
     if (gate) pairs.push(['Enter', '스포일러지만 보기'], ['Esc', '목록']);
     else {
-      if (lv) pairs.push(['R', runner ? '리셋' : '재생']);
+      if (lv) pairs.push(['R', runner ? '리셋' : '재생'], ['F', `빨리가기 ${speed}×`]);
       if (open) pairs.push(['Enter', '이 레벨 직접 풀기']);
       pairs.push(['Esc', '목록']);
     }
@@ -91,8 +94,16 @@ export function startReplay(root: HTMLElement, o: ReplayOpts): Screen {
       return;
     }
     if ((e.key === 'r' || e.key === 'R') && lv && built)
-      return done(() => (runner = runner ? null : new Runner(built!.board, queueItems(lv), performance.now())));
+      return done(() => {
+        runner = runner ? null : new Runner(built!.board, queueItems(lv), performance.now());
+        if (runner) runner.speed = speed;
+      });
     if (e.key === 'Enter' && open) return done(() => o.onPlay(idx));
+    if (e.key === 'f' || e.key === 'F')
+      return done(() => {
+        speed = speed === 1 ? 2 : speed === 2 ? 4 : 1;
+        if (runner) runner.speed = speed;
+      });
   }
 
   function frame(t: number) {
@@ -137,6 +148,7 @@ export function startReplay(root: HTMLElement, o: ReplayOpts): Screen {
     key,
     dispose() {
       alive = false;
+      window.removeEventListener('resize', onResize);
     },
   };
 }

@@ -9,10 +9,12 @@ import { LevelPlay } from '../core/play';
 import type { Dir, PartType } from '../core/types';
 import { MINOS, PIECE_ORDER, type PieceLetter } from '../data/minos';
 import { artSize, burst, drawCelebration, hamsterIcon, renderArt, THEME, type Overlay, type Particle } from './art';
-import { copyLink, el, renderHints, Runner, shareUrl, sizeCanvas, type Screen } from './runner';
+import { copyLink, el, fitCanvas, renderHints, Runner, shareUrl, type Screen } from './runner';
 import { encodeShare } from '../core/share';
 import { bestPrice, recordClear } from './storage';
 import { LEVEL_TUTORIALS, Tutorial } from './tutorial';
+import { KeyRepeat } from './keyrepeat';
+import { renderPalette } from './palette';
 
 export interface LevelScreenOpts {
   level: Level;
@@ -33,23 +35,27 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   const letters = PIECE_ORDER.filter((p) => lv.allowed.minos.some((id) => MINOS.find((d) => d.id === id)?.piece === p));
   let letterIdx = 0;
   const variant: Partial<Record<PieceLetter, number>> = {};
-  const parts: { type: PartType; dir?: Dir; label: string }[] = [];
-  for (const t of lv.allowed.parts) {
-    if (t === 'motor') parts.push({ type: 'motor', dir: 1, label: '모터 ↻' }, { type: 'motor', dir: -1, label: '모터 ↺' });
-    else parts.push({ type: t, label: PART_NAMES[t] });
-  }
-  let partIdx = 0;
+  /** 부품은 글자 키로 바로: S 센서 · G 기어 · M 모터(다시 누르면 방향) · W 스위치 · P 마개 */
+  const PART_KEYS: Record<string, PartType> = { s: 'sensor', g: 'gear', m: 'motor', w: 'switch', p: 'plug' };
+  const KEY_OF: Record<PartType, string> = { sensor: 'S', gear: 'G', motor: 'M', switch: 'W', plug: 'P' };
+  let partType: PartType | null = null;
+  let motorDir: Dir = 1;
+  const partLabel = (t: PartType) => (t === 'motor' ? `모터 ${motorDir === 1 ? '↻' : '↺'}` : PART_NAMES[t]);
+  const repeat = new KeyRepeat();
+  /** 자동 낙하: 들고 있는 미노가 이 간격마다 한 칸 (바닥에 닿으면 Space 를 기다린다) */
+  const GRAVITY_MS = 800;
+  let gravityAt = 0;
   const cursor = { x: Math.floor(lv.w / 2), y: Math.floor(lv.h / 2) };
   let runner: Runner | null = null;
   let cleared = false;
   let message = '';
   let alive = true;
-  /** Shift 를 다른 키 없이 눌렀다 뗐을 때만 미노↔부품 (? 를 칠 때 바뀌지 않게) */
-  let shiftAlone = false;
   let celebrate: { ps: Particle[]; t0: number } | null = null;
   /** 이번에 깬 풀이의 공유 코드 */
   let clearCode: string | null = null;
   let failUntil = 0;
+  /** 빨리가기 배율 (F) — 실행할 때마다 이어진다 */
+  let speed = 1;
   let helpOpen = false;
 
   root.innerHTML = '';
@@ -61,7 +67,9 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   const canvas = document.createElement('canvas');
   canvas.className = 'board';
   const [cw, ch] = artSize(play.board);
-  const ctx = sizeCanvas(canvas, cw, ch);
+  let ctx = fitCanvas(canvas, cw, ch, left);
+  const onResize = () => (ctx = fitCanvas(canvas, cw, ch, left));
+  window.addEventListener('resize', onResize);
   const hints = el('div', 'hints');
   const msg = el('div', 'status');
   left.append(modeBar, canvas, hints, msg);
@@ -71,6 +79,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   const queueBox = el('div', 'qicons');
   const goalBox = el('div', 'goals');
   const selBox = el('div', 'sel');
+  const palBox = el('div', '');
   const card = (...kids: HTMLElement[]) => {
     const c = el('div', 'card');
     c.append(...kids);
@@ -83,6 +92,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     card(el('h2', '', '가격 / 예산'), priceBox),
     card(el('h2', '', '대기열 — 이 순서로 떨어진다'), queueBox),
     card(el('h2', '', '통 목표'), goalBox),
+    card(el('h2', '', '미노 · 부품'), palBox),
     selBox,
     keysHead,
     keysBox,
@@ -112,7 +122,10 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     const d = currentDef();
     if (!d) return say('이 레벨에서는 미노를 쓸 수 없다');
     const r = play.spawn(d.id, performance.now());
-    if (r.ok) tev('spawn');
+    if (r.ok) {
+      tev('spawn');
+      gravityAt = performance.now() + GRAVITY_MS;
+    }
     res(r, `${d.name}`);
   };
 
@@ -126,9 +139,9 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       f();
       refresh();
     };
-    if (k !== 'Shift') shiftAlone = false;
+    if (e.repeat && (repeat.has(k) || k.startsWith('Arrow'))) return void e.preventDefault(); // 꾹 누르기는 직접 반복
     if (k !== 'Shift' && lower !== 'n') tut?.anyKey(); // 한 번짜리 말풍선은 아무 키나 누르면 닫힌다
-    if (k === 'Escape') return done(() => o.onExit());
+    if (k === 'Escape') return done(() => (mode === 'part' ? ((mode = 'mino'), say('미노로')) : o.onExit()));
     if (k === '?' || lower === 'h') return done(() => (helpOpen = !helpOpen));
     if (lower === 'n')
       return done(() => {
@@ -138,8 +151,14 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       });
     if (ctrl && lower === 'z' && !e.shiftKey) return done(() => editing() && say(play.undo() ? '되돌림' : '되돌릴 것 없음'));
     if (ctrl && (lower === 'y' || (lower === 'z' && e.shiftKey))) return done(() => editing() && say(play.redo() ? '다시 함' : '다시 할 것 없음'));
-    if (ctrl) return;
+    if (ctrl || k === 'Shift') return;
     if (lower === 'r') return done(toggleRun);
+    if (lower === 'f')
+      return done(() => {
+        speed = speed === 1 ? 2 : speed === 2 ? 4 : 1;
+        if (runner) runner.speed = speed;
+        say(`빨리가기 ${speed}×`);
+      });
     if (k === 'Enter' && cleared && o.onNext) return done(() => o.onNext!());
     if (k === 'Enter' && cleared && o.onAllClear) return done(() => o.onAllClear!());
     if (lower === 'c' && cleared && clearCode)
@@ -150,18 +169,28 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
           refresh();
         });
       });
-    if (k === 'Shift') {
-      if (!e.repeat) shiftAlone = true;
-      return;
-    }
     if (!editing()) return done(() => {});
-    if (mode === 'mino') {
-      if (/^[1-7]$/.test(k)) return done(() => {
+    // ---- 고르기: 숫자 = 미노, 글자 = 부품 (모드 전환 키 없음) ----
+    if (/^[1-7]$/.test(k))
+      return done(() => {
         const i = Number(k) - 1;
         if (i >= letters.length) return say('없는 번호');
+        mode = 'mino';
         letterIdx = i;
         spawnCurrent();
       });
+    const pt = PART_KEYS[lower];
+    if (pt)
+      return done(() => {
+        if (!lv.allowed.parts.includes(pt)) return say(`이 레벨에서는 ${PART_NAMES[pt]} 를 쓸 수 없다`);
+        if (pt === 'motor' && mode === 'part' && partType === 'motor') motorDir = motorDir === 1 ? -1 : 1;
+        if (mode !== 'part') play.stack.cancelActive();
+        mode = 'part';
+        partType = pt;
+        tev('mode:part');
+        say(`${partLabel(pt)} — 방향키로 칸을 고르고 Space`);
+      });
+    if (mode === 'mino') {
       if (lower === 'q' || lower === 'e') return done(() => {
         const p = letters[letterIdx];
         if (!p) return;
@@ -170,9 +199,12 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
         spawnCurrent();
       });
       const a = play.active;
-      if (k === 'ArrowLeft') return done(() => a && play.move(-1, now) && tev('move'));
-      if (k === 'ArrowRight') return done(() => a && play.move(1, now) && tev('move'));
-      if (k === 'ArrowDown') return done(() => a && play.softDrop(now));
+      const held = (fn: () => void) => done(() => repeat.press(k, now, () => { fn(); refresh(); }));
+      if (k === 'ArrowLeft') return held(() => play.active && play.move(-1, performance.now()) && tev('move'));
+      if (k === 'ArrowRight') return held(() => play.active && play.move(1, performance.now()) && tev('move'));
+      if (k === 'ArrowDown') return held(() => {
+        if (play.active && play.softDrop(performance.now())) gravityAt = performance.now() + GRAVITY_MS;
+      });
       if (lower === 'x') return done(() => a && play.rotate(1, now) && tev('rotate'));
       if (lower === 'z') return done(() => a && play.rotate(-1, now) && tev('rotate'));
       if (k === ' ' || k === 'Enter')
@@ -191,15 +223,11 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
           tev('cursor');
         }
       };
-      if (/^[1-9]$/.test(k)) return done(() => {
-        const i = Number(k) - 1;
-        if (i >= parts.length) return say('없는 번호');
-        partIdx = i;
-      });
-      if (k === 'ArrowLeft') return done(() => move(-1, 0));
-      if (k === 'ArrowRight') return done(() => move(1, 0));
-      if (k === 'ArrowDown') return done(() => move(0, 1));
-      if (k === 'ArrowUp') return done(() => move(0, -1));
+      const held = (dx: number, dy: number) => done(() => repeat.press(k, now, () => { move(dx, dy); refresh(); }));
+      if (k === 'ArrowLeft') return held(-1, 0);
+      if (k === 'ArrowRight') return held(1, 0);
+      if (k === 'ArrowDown') return held(0, 1);
+      if (k === 'ArrowUp') return held(0, -1);
       if (lower === 'x' || lower === 'z')
         return done(() => {
           const r = play.rotateSwitch(cursor.x, cursor.y, lower === 'x' ? 1 : -1);
@@ -213,11 +241,10 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
           res(r, `시작 방향 ${lower.toUpperCase()}`);
         });
       if (k === ' ' || k === 'Enter') return done(() => {
-        const p = parts[partIdx];
-        if (!p) return say('이 레벨에서는 부품을 쓸 수 없다');
-        const r = play.placePart(cursor.x, cursor.y, p.type, p.dir);
-        if (r.ok) tev(`part:${p.type}`);
-        res(r, `${p.label} 놓음`);
+        if (!partType) return say('부품 키를 먼저 (S G M W P)');
+        const r = play.placePart(cursor.x, cursor.y, partType, partType === 'motor' ? motorDir : undefined);
+        if (r.ok) tev(`part:${partType}`);
+        res(r, `${partLabel(partType)} 놓음`);
       });
       if (k === 'Delete' || k === 'Backspace') return done(() => res(play.removePart(cursor.x, cursor.y), '부품 제거'));
     }
@@ -234,6 +261,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     }
     play.stack.cancelActive();
     runner = new Runner(play.board, queueItems(lv), performance.now());
+    runner.speed = speed;
     tev('run');
     say('실행 중 — R 로 리셋');
   }
@@ -273,16 +301,16 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
             ? [['Enter', '끝 화면'], ['C', '풀이 링크 복사'], ['Esc', '목록']]
             : [['C', '풀이 링크 복사'], ['Esc', '돌아가기'], ['R', '다시 고치기']];
       if (runner.run.done) return [['R', '리셋하고 고치기'], ['Esc', '목록']];
-      return [['R', '멈추고 리셋']];
+      return [['R', '멈추고 리셋'], ['F', `빨리가기 (${speed}×)`]];
     }
     if (mode === 'mino') {
-      if (play.active) return [['← →', '옮기기'], ['↓', '한 칸 내리기'], ['X / Z', '회전'], ['Space', '떨어뜨리기']];
-      return [[`1~${Math.max(1, letters.length)}`, '미노 꺼내기'], ['Shift', '부품으로'], ['R', '실행'], ['?', '전체 키']];
+      if (play.active) return [['← →', '옮기기 (꾹)'], ['↓', '빨리 내리기'], ['X / Z', '회전'], ['Space', '고정']];
+      const pk = lv.allowed.parts.map((t) => KEY_OF[t]).join(' ');
+      return [[`1~${Math.max(1, letters.length)}`, '미노'], ...(pk ? ([[pk, '부품']] as [string, string][]) : []), ['R', '실행'], ['?', '전체 키']];
     }
-    if (!parts.length) return [['Shift', '미노로 돌아가기 (이 레벨은 부품이 없다)']];
     const here = play.board.partAt(cursor.x, cursor.y);
     if (here?.type === 'switch' && !play.isFixedCell(cursor.x, cursor.y)) return [['A / B', '시작 방향'], ['X / Z', '공통(흰 점) 돌리기'], ['Delete', '지우기']];
-    return [['방향키', '칸 고르기'], [`1~${Math.max(1, parts.length)}`, '부품 고르기'], ['Space', '놓기'], ['Shift', '미노로']];
+    return [['방향키', '칸 고르기'], ['Space', `${partType ? partLabel(partType) : '부품'} 놓기`], ...(partType === 'motor' ? ([['M', '방향 바꾸기']] as [string, string][]) : []), ['숫자', '미노로']];
   }
 
   /** 판 위 안내: 빛나는 목표 칸 + 말풍선 */
@@ -313,7 +341,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   function refresh() {
     modeBar.innerHTML = '';
     for (const [m, label] of [['mino', '미노'], ['part', '부품']] as const) modeBar.append(el('span', 'mode' + (mode === m ? ' on' : ''), label));
-    modeBar.append(el('span', 'dim', '  Shift 미노↔부품 · ? 전체 키'));
+    modeBar.append(el('span', 'dim', '  숫자 = 미노 · 글자 = 부품 · ? 전체 키'));
 
     const price = play.price();
     priceBox.innerHTML = '';
@@ -359,15 +387,22 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     });
     if (empties) goalBox.append(el('div', 'dim', '나머지 통은 비워 둔다'));
 
+    renderPalette(palBox, {
+      allowedMinos: lv.allowed.minos,
+      keyOrder: letters,
+      letter: letters[letterIdx] ?? null,
+      defId: currentDef()?.id ?? null,
+      allowedParts: lv.allowed.parts,
+      part: partType,
+      partMode: mode === 'part',
+    });
     selBox.innerHTML = '';
+    selBox.hidden = mode === 'mino';
     if (mode === 'mino') {
-      const d = currentDef();
-      selBox.append(el('div', '', d ? `${letterIdx + 1}:${letters[letterIdx]} · ${d.name}` : '미노 없음'));
-      selBox.append(el('div', 'dim', letters.map((p, i) => `${i + 1}:${p}`).join('  ') || '이 레벨은 미노를 쓰지 않는다'));
+      // 미노는 팔레트가 보여준다
     } else {
-      const p = parts[partIdx];
-      selBox.append(el('div', '', p ? `${partIdx + 1}: ${p.label} · 커서 (${cursor.x},${cursor.y})` : '부품 없음'));
-      selBox.append(el('div', 'dim', parts.map((q, i) => `${i + 1}:${q.label}`).join('  ') || '이 레벨은 부품을 쓰지 않는다'));
+      selBox.append(el('div', '', partType ? `${partLabel(partType)} · 커서 (${cursor.x},${cursor.y})` : '부품'));
+      selBox.append(el('div', 'dim', lv.allowed.parts.map((t) => `${KEY_OF[t]}:${PART_NAMES[t]}`).join('  ') || '이 레벨은 부품을 쓰지 않는다'));
       const here = play.board.partAt(cursor.x, cursor.y);
       if (here) selBox.append(el('div', 'dim', `이 칸: ${PART_NAMES[here.type]}${here.type === 'switch' ? ` (시작 ${here.start})` : ''}${play.isFixedCell(cursor.x, cursor.y) ? ' · 고정' : ''}`));
     }
@@ -377,26 +412,25 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     keysBox.innerHTML = '';
     const rows: [string, string][] =
       mode === 'mino'
-        ? [['1~7', '모양 고르기(나타남)'], ['Q / E', '변형'], ['← →', '이동'], ['↓', '한 칸 내리기'], ['X / Z', '회전'], ['Space', '떨어뜨리기'], ['Delete', '마지막 미노 지우기']]
-        : [['숫자', '부품'], ['방향키', '커서'], ['Space', '놓기'], ['X / Z', '스위치 공통 갈래'], ['A / B', '스위치 시작 상태'], ['Delete', '부품 지우기']];
-    rows.push(['Shift', '미노 ↔ 부품 (떼면 바뀜)'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시'], ['R', '실행 / 리셋'], ['Esc', '레벨 목록'], ['? / H', '이 목록 열고 닫기'], ['N', '안내 다음 / 다시 보기']);
+        ? [['1~7', '미노 꺼내기 (저절로 천천히 내려옴)'], ['Q / E', '튜브 ↔ 빈 변형'], ['← →', '옮기기 (꾹 누르면 미끄러짐)'], ['↓', '빨리 내리기'], ['X / Z', '회전'], ['Space', '바로 떨어뜨려 고정'], ['Delete', '마지막 미노 지우기']]
+        : [['방향키', '칸 고르기'], ['Space', '놓기'], ['M', '모터 방향 바꾸기'], ['X / Z', '스위치 공통 갈래'], ['A / B', '스위치 시작 상태'], ['Delete', '부품 지우기'], ['Esc', '미노로']];
+    rows.push(['S G M W P', '센서 · 기어 · 모터 · 스위치 · 마개'], ['F', '빨리가기 1× · 2× · 4×'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시'], ['R', '실행 / 리셋'], ['Esc', '레벨 목록'], ['? / H', '이 목록 열고 닫기'], ['N', '안내 다음 / 다시 보기']);
     for (const [kk, what] of rows) {
       const row = el('div', 'krow');
       row.append(el('kbd', '', kk), el('span', '', what));
       keysBox.append(row);
     }
-    msg.textContent = message || '숫자로 미노를 고르고 Space 로 떨어뜨린다. Shift 로 부품.';
+    msg.textContent = message || '숫자로 미노를 꺼내고 Space 로 고정. 부품은 S G M W P.';
   }
 
   function frame(t: number) {
     if (!alive) return;
-    if (!runner && play.active) {
-      const r = play.tick(t);
-      if (r) {
-        if (r.ok) tev('drop');
-        res(r, '놓음');
-        refresh();
-      }
+    if (repeat.update(t)) refresh();
+    // 느린 자동 낙하. 바닥에 닿으면 멈춰서 Space 를 기다린다 (저절로 고정하지 않음)
+    if (!runner && play.active && t >= gravityAt) {
+      play.softDrop(t);
+      play.stack.groundedAt = null;
+      gravityAt = t + GRAVITY_MS;
     }
     if (runner) {
       const out = runner.frame(t);
@@ -442,14 +476,12 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   return {
     key,
     keyUp(e: KeyboardEvent) {
-      if (e.key !== 'Shift' || !shiftAlone) return;
-      shiftAlone = false;
-      mode = mode === 'mino' ? 'part' : 'mino';
-      tev(`mode:${mode}`);
-      refresh();
+      repeat.release(e.key);
     },
     dispose() {
       alive = false;
+      repeat.clear();
+      window.removeEventListener('resize', onResize);
     },
   };
 }
