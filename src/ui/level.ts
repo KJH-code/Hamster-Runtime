@@ -14,6 +14,7 @@ import { encodeShare } from '../core/share';
 import { bestPrice, recordClear } from './storage';
 import { LEVEL_TUTORIALS, Tutorial } from './tutorial';
 import { KeyRepeat } from './keyrepeat';
+import { renderPalette } from './palette';
 
 export interface LevelScreenOpts {
   level: Level;
@@ -74,6 +75,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   const queueBox = el('div', 'qicons');
   const goalBox = el('div', 'goals');
   const selBox = el('div', 'sel');
+  const palBox = el('div', '');
   const card = (...kids: HTMLElement[]) => {
     const c = el('div', 'card');
     c.append(...kids);
@@ -86,6 +88,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     card(el('h2', '', '가격 / 예산'), priceBox),
     card(el('h2', '', '대기열 — 이 순서로 떨어진다'), queueBox),
     card(el('h2', '', '통 목표'), goalBox),
+    card(el('h2', '', '미노 · 부품'), palBox),
     selBox,
     keysHead,
     keysBox,
@@ -373,11 +376,19 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     });
     if (empties) goalBox.append(el('div', 'dim', '나머지 통은 비워 둔다'));
 
+    renderPalette(palBox, {
+      allowedMinos: lv.allowed.minos,
+      keyOrder: letters,
+      letter: letters[letterIdx] ?? null,
+      defId: currentDef()?.id ?? null,
+      allowedParts: lv.allowed.parts,
+      part: partType,
+      partMode: mode === 'part',
+    });
     selBox.innerHTML = '';
+    selBox.hidden = mode === 'mino';
     if (mode === 'mino') {
-      const d = currentDef();
-      selBox.append(el('div', '', d ? `${letterIdx + 1}:${letters[letterIdx]} · ${d.name}` : '미노 없음'));
-      selBox.append(el('div', 'dim', letters.map((p, i) => `${i + 1}:${p}`).join('  ') || '이 레벨은 미노를 쓰지 않는다'));
+      // 미노는 팔레트가 보여준다
     } else {
       selBox.append(el('div', '', partType ? `${partLabel(partType)} · 커서 (${cursor.x},${cursor.y})` : '부품'));
       selBox.append(el('div', 'dim', lv.allowed.parts.map((t) => `${KEY_OF[t]}:${PART_NAMES[t]}`).join('  ') || '이 레벨은 부품을 쓰지 않는다'));
