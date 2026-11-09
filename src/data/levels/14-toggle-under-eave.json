@@ -1,0 +1,53 @@
+{
+  "id": "14-toggle-under-eave",
+  "name": "처마 밑 토글",
+  "mechanic": "토글 기계. 받침 자리 위가 막혀 있으면 떨어지는 도중에 옆으로 밀어 넣는다.",
+  "w": 9,
+  "h": 8,
+  "queue": [
+    { "color": "blue", "inject": "left" },
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "left" },
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "left" },
+    { "color": "red", "inject": "left" }
+  ],
+  "bins": [
+    { "red": 0, "blue": 3 },
+    { "red": 0, "blue": 0 },
+    { "red": 3, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 0 }
+  ],
+  "allowed": {
+    "minos": ["I-tube", "I-empty", "O-tube", "O-empty", "T-tube-a", "T-tube-b", "T-empty", "S-tube", "S-empty", "Z-tube", "Z-empty", "L-tube", "L-empty", "J-tube", "J-empty"],
+    "parts": ["sensor", "gear", "motor", "switch", "plug"]
+  },
+  "budget": 52,
+  "fixed": {
+    "minos": [
+      { "id": "O-empty", "r": 0, "x": 4, "y": 2 }
+    ],
+    "parts": []
+  },
+  "solution": {
+    "minos": [
+      { "id": "L-tube", "r": 2, "x": 0, "y": 5 },
+      { "id": "J-tube", "r": 2, "x": 3, "y": 5 },
+      { "id": "I-tube", "r": 1, "x": 1, "y": 2 },
+      { "id": "O-empty", "r": 0, "x": 4, "y": 4 },
+      { "id": "O-empty", "r": 0, "x": 1, "y": 4 },
+      { "id": "L-empty", "r": 2, "x": 0, "y": 2 },
+      { "id": "J-tube", "r": 0, "x": 0, "y": 1 }
+    ],
+    "parts": [
+      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "A" },
+      { "x": 4, "y": 6, "type": "sensor" },
+      { "x": 4, "y": 5, "type": "motor", "dir": "ccw" },
+      { "x": 3, "y": 5, "type": "gear" },
+      { "x": 1, "y": 6, "type": "sensor" },
+      { "x": 1, "y": 5, "type": "motor", "dir": "ccw" },
+      { "x": 2, "y": 5, "type": "gear" }
+    ]
+  }
+}

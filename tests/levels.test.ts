@@ -10,8 +10,8 @@ import { PRICES } from '../src/data/prices';
 const solve = (lv: Level, layout: Layout) => verifyLayout(lv, layout, PRICES);
 
 describe('레벨 세트', () => {
-  it('10개, 번호 순서', () => {
-    expect(LEVELS.map((l) => l.id.slice(0, 2))).toEqual(['01', '02', '03', '04', '05', '06', '07', '08', '09', '10']);
+  it('15개, 번호 순서', () => {
+    expect(LEVELS.map((l) => l.id.slice(0, 2))).toEqual(['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15']);
   });
   for (const lv of LEVELS) {
     describe(lv.id, () => {
@@ -61,6 +61,11 @@ describe('막아 둔 우회', () => {
   });
   it('9: 오른쪽 갈래 출구 밑 바닥은 고정 빈 미노라 되돌리는 길을 못 깐다', () => {
     const r = solve(byId('09'), { minos: [{ id: 'I-tube', r: 2, x: 2, y: 6 }], parts: [] });
+    expect(r.judgement?.clear ?? false).toBe(false);
+  });
+  it('13: 오른쪽 투입구 위 (5,0) 는 고정 빈 미노라 합류 문을 건너뛰는 길을 못 깐다', () => {
+    // 오른쪽 위로 L·I 를 돌려 대고 (4,3) 을 마개로 막던 우회 (탐색에서 5원)
+    const r = solve(byId('13'), { minos: [{ id: 'L-tube', r: 0, x: 4, y: 0 }, { id: 'I-tube', r: 0, x: 1, y: -1 }], parts: [{ x: 4, y: 3, type: 'plug' }] });
     expect(r.judgement?.clear ?? false).toBe(false);
   });
 });

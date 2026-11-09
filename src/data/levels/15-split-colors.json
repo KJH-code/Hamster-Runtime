@@ -1,0 +1,63 @@
+{
+  "id": "15-split-colors",
+  "name": "양쪽 색 나누기",
+  "mechanic": "두 투입구, 색이 섞인 대기열. 통 하나에는 한 색만 들어가야 한다.",
+  "w": 12,
+  "h": 10,
+  "queue": [
+    { "color": "red", "inject": "left" },
+    { "color": "red", "inject": "right" },
+    { "color": "blue", "inject": "left" },
+    { "color": "blue", "inject": "right" },
+    { "color": "red", "inject": "left" },
+    { "color": "red", "inject": "right" },
+    { "color": "blue", "inject": "left" },
+    { "color": "blue", "inject": "right" }
+  ],
+  "bins": [
+    { "red": 2, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 2 },
+    { "red": 2, "blue": 0 },
+    { "red": 0, "blue": 0 },
+    { "red": 0, "blue": 2 }
+  ],
+  "allowed": {
+    "minos": ["I-tube", "I-empty", "O-tube", "O-empty", "T-tube-a", "T-tube-b", "T-empty", "S-tube", "S-empty", "Z-tube", "Z-empty", "L-tube", "L-empty", "J-tube", "J-empty"],
+    "parts": ["sensor", "gear", "motor", "switch", "plug"]
+  },
+  "budget": 46,
+  "fixed": {
+    "minos": [
+      { "id": "J-tube", "r": 0, "x": 0, "y": 2 },
+      { "id": "I-tube", "r": 1, "x": 1, "y": 3 },
+      { "id": "L-tube", "r": 2, "x": 0, "y": 5 },
+      { "id": "I-tube", "r": 1, "x": 2, "y": 6 },
+      { "id": "L-tube", "r": 0, "x": 9, "y": 2 },
+      { "id": "I-tube", "r": 1, "x": 6, "y": 3 },
+      { "id": "J-tube", "r": 2, "x": 9, "y": 5 },
+      { "id": "I-tube", "r": 1, "x": 5, "y": 6 },
+      { "id": "O-empty", "r": 0, "x": 1, "y": 4 }
+    ],
+    "parts": []
+  },
+  "solution": {
+    "minos": [
+      { "id": "I-empty", "r": 1, "x": 3, "y": 6 },
+      { "id": "I-empty", "r": 1, "x": 4, "y": 6 }
+    ],
+    "parts": [
+      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "A" },
+      { "x": 8, "y": 6, "type": "switch", "common": "N", "start": "B" },
+      { "x": 2, "y": 6, "type": "sensor" },
+      { "x": 2, "y": 5, "type": "motor", "dir": "cw" },
+      { "x": 3, "y": 5, "type": "gear" },
+      { "x": 4, "y": 7, "type": "sensor" },
+      { "x": 5, "y": 7, "type": "motor", "dir": "cw" },
+      { "x": 5, "y": 6, "type": "gear" },
+      { "x": 4, "y": 6, "type": "gear" },
+      { "x": 6, "y": 6, "type": "gear" },
+      { "x": 7, "y": 6, "type": "gear" }
+    ]
+  }
+}
