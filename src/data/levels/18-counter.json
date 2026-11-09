@@ -1,0 +1,60 @@
+{
+  "id": "18-counter",
+  "name": "두 단 토글",
+  "mechanic": "스위치 둘을 위아래로 잇는다. 아래 스위치는 위 스위치의 한쪽 갈래로 간 햄스터만 바꾼다.",
+  "w": 8,
+  "h": 10,
+  "queue": [
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "left" },
+    { "color": "red", "inject": "left" },
+    { "color": "red", "inject": "left" },
+    { "color": "red", "inject": "left" },
+    { "color": "blue", "inject": "left" }
+  ],
+  "bins": [
+    { "red": 3, "blue": 0 },
+    { "red": 0, "blue": 2 },
+    { "red": 0, "blue": 0 },
+    { "red": 1, "blue": 0 }
+  ],
+  "allowed": {
+    "minos": ["I-tube", "I-empty", "O-tube", "O-empty", "T-tube-a", "T-tube-b", "T-empty", "S-tube", "S-empty", "Z-tube", "Z-empty", "L-tube", "L-empty", "J-tube", "J-empty"],
+    "parts": ["sensor", "gear", "motor", "switch", "plug"]
+  },
+  "budget": 70,
+  "fixed": {
+    "minos": [
+      { "id": "L-tube", "r": 2, "x": 0, "y": 5 },
+      { "id": "J-tube", "r": 2, "x": 3, "y": 5 },
+      { "id": "O-empty", "r": 0, "x": 1, "y": 4 },
+      { "id": "I-empty", "r": 0, "x": 3, "y": 8 },
+      { "id": "L-tube", "r": 2, "x": 2, "y": 7 },
+      { "id": "J-tube", "r": 2, "x": 5, "y": 7 }
+    ],
+    "parts": []
+  },
+  "solution": {
+    "minos": [
+      { "id": "L-empty", "r": 2, "x": 0, "y": 2 },
+      { "id": "I-tube", "r": 1, "x": 1, "y": 2 },
+      { "id": "J-tube", "r": 0, "x": 0, "y": 1 },
+      { "id": "O-empty", "r": 0, "x": 4, "y": 4 }
+    ],
+    "parts": [
+      { "x": 3, "y": 6, "type": "switch", "common": "N", "start": "A" },
+      { "x": 4, "y": 6, "type": "sensor" },
+      { "x": 4, "y": 5, "type": "motor", "dir": "ccw" },
+      { "x": 3, "y": 5, "type": "gear" },
+      { "x": 1, "y": 6, "type": "sensor" },
+      { "x": 1, "y": 5, "type": "motor", "dir": "ccw" },
+      { "x": 2, "y": 5, "type": "gear" },
+      { "x": 5, "y": 8, "type": "switch", "common": "N", "start": "A" },
+      { "x": 4, "y": 8, "type": "sensor" },
+      { "x": 6, "y": 8, "type": "sensor" },
+      { "x": 4, "y": 9, "type": "motor", "dir": "cw" },
+      { "x": 6, "y": 9, "type": "motor", "dir": "ccw" },
+      { "x": 5, "y": 9, "type": "gear" }
+    ]
+  }
+}

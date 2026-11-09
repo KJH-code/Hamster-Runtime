@@ -10,8 +10,8 @@ import { PRICES } from '../src/data/prices';
 const solve = (lv: Level, layout: Layout) => verifyLayout(lv, layout, PRICES);
 
 describe('레벨 세트', () => {
-  it('16개, 번호 순서 (00 = 입문)', () => {
-    expect(LEVELS.map((l) => l.id.slice(0, 2))).toEqual(['00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15']);
+  it('19개, 번호 순서 (00 = 입문)', () => {
+    expect(LEVELS.map((l) => l.id.slice(0, 2))).toEqual(['00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18']);
   });
   for (const lv of LEVELS) {
     describe(lv.id, () => {
@@ -61,6 +61,16 @@ describe('막아 둔 우회', () => {
   });
   it('9: 오른쪽 갈래 출구 밑 바닥은 고정 빈 미노라 되돌리는 길을 못 깐다', () => {
     const r = solve(byId('09'), { minos: [{ id: 'I-tube', r: 2, x: 2, y: 6 }], parts: [] });
+    expect(r.judgement?.clear ?? false).toBe(false);
+  });
+  it('17: 오른쪽 고정 기둥이 처마 위(지붕)로 건너가는 길을 막는다', () => {
+    // 기둥이 없으면 왼쪽에 받침을 쌓아 지붕 위로 튜브를 깔고 오른쪽 끝(열 12)으로 떨어뜨리는 길이 예산 16 에 딱 맞게 풀린다
+    const roof = [
+      { id: 'O-empty', r: 0, x: 0, y: 8 }, { id: 'O-empty', r: 0, x: 0, y: 6 }, { id: 'O-empty', r: 0, x: 0, y: 4 }, { id: 'L-tube', r: 1, x: -1, y: 1 },
+      { id: 'I-empty', r: 0, x: 3, y: 4 }, { id: 'I-empty', r: 0, x: 7, y: 4 }, { id: 'I-empty', r: 0, x: 2, y: 3 }, { id: 'I-empty', r: 0, x: 6, y: 3 },
+      { id: 'I-tube', r: 0, x: 2, y: 2 }, { id: 'I-tube', r: 0, x: 6, y: 2 }, { id: 'Z-empty', r: 0, x: 10, y: 4 }, { id: 'J-tube', r: 2, x: 10, y: 2 },
+    ];
+    const r = solve(byId('16'), { minos: roof, parts: [] });
     expect(r.judgement?.clear ?? false).toBe(false);
   });
   it('13: 오른쪽 투입구 위 (5,0) 는 고정 빈 미노라 합류 문을 건너뛰는 길을 못 깐다', () => {
