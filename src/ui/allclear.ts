@@ -1,5 +1,5 @@
 /**
- * 끝 화면 — 10번까지 다 깨면. 레벨별 내 최저 / 예산, 총합, 가벼운 축하. 키보드 전용.
+ * 끝 화면 — 모든 레벨을 다 깨면. 레벨별 내 최저 / 예산, 총합, 가벼운 축하. 키보드 전용.
  */
 import type { Level } from '../core/level';
 import { burst, drawCelebration, drawHamster, THEME, type Particle } from './art';
