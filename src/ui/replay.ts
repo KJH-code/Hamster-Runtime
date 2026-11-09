@@ -61,7 +61,7 @@ export function startReplay(root: HTMLElement, o: ReplayOpts): Screen {
     card(el('h2', '', '엔진으로 다시 확인'), verdict),
   );
   if (res.ok) {
-    verdict.textContent = `✓ 클리어 · 가격 ${res.judgement.price} / ${res.level.budget}`;
+    verdict.textContent = `✓ 클리어 · 가격 ${res.judgement.price} / ${res.level.budget}${res.hinted ? ' · 💡 힌트 사용' : ''}`;
     const mine = bestPrice(res.level.id);
     if (mine !== undefined) panel.lastElementChild!.append(el('div', 'dim', `내 최저 기록 ${mine}`));
   } else {

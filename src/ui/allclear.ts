@@ -4,7 +4,7 @@
 import type { Level } from '../core/level';
 import { burst, drawCelebration, drawHamster, THEME, type Particle } from './art';
 import { el, renderHints, sizeCanvas, type Screen } from './runner';
-import { bestPrice } from './storage';
+import { bestHinted, bestPrice } from './storage';
 
 export function startAllClear(root: HTMLElement, levels: Level[], onExit: () => void): Screen {
   let alive = true;
@@ -34,12 +34,12 @@ export function startAllClear(root: HTMLElement, levels: Level[], onExit: () => 
     const star = best !== undefined && best <= ref;
     if (star) under++;
     const r = el('div', 'crow');
-    r.append(el('span', 'cn', String(i + 1)), el('span', 'cname', lv.name), el('span', 'cbest' + (star ? ' star' : ''), best !== undefined ? `${star ? '★ ' : ''}${best}` : '—'), el('span', 'cbud', `/ ${lv.budget}`));
+    r.append(el('span', 'cn', String(i + 1)), el('span', 'cname', lv.name), el('span', 'cbest' + (star ? ' star' : ''), best !== undefined ? `${star ? '★ ' : ''}${best}${bestHinted(lv.id) ? ' 💡' : ''}` : '—'), el('span', 'cbud', `/ ${lv.budget}`));
     rows.append(r);
   });
   const sum = el('div', 'csum');
   sum.append(el('span', '', '합계'), el('span', 'pricebig', `${total} / ${totalBudget}`));
-  table.append(el('h2', '', '내 최저 가격 / 예산'), rows, sum, el('div', 'dim', `★ = 만든 사람 풀이 가격 이하 (${under}/${levels.length}). 더 싸게 풀 수 있는지 다시 도전해 보자`));
+  table.append(el('h2', '', '내 최저 가격 / 예산'), rows, sum, el('div', 'dim', `★ = 만든 사람 풀이 가격 이하 (${under}/${levels.length}) · 💡 = 힌트를 보고 낸 기록. 더 싸게 풀 수 있는지 다시 도전해 보자`));
   const help = el('div', 'hints');
   renderHints(help, [['Enter / Esc', '레벨 목록']]);
   help.append(el('span', 'dim', '레벨 카드에서 C 로 내 풀이 링크를 복사해 친구와 비교'));
