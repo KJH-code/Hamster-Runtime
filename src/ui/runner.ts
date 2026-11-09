@@ -55,6 +55,14 @@ export class Runner {
   }
 
   /** 프레임마다. 한 마리가 끝났으면 그 결과(순번 포함)를 돌려준다 */
+  /** 이번 프레임까지 쌓인 사건 (소리·반짝임용). 화면이 drainEvents() 로 가져간다 */
+  private events: RunEvent[] = [];
+  drainEvents(): RunEvent[] {
+    const e = this.events;
+    this.events = [];
+    return e;
+  }
+
   frame(t: number): { n: number; status: Status; bin: number | null } | null {
     const dt = Math.min(0.1, (t - this.last) / 1000);
     this.last = t;
@@ -68,15 +76,30 @@ export class Runner {
       const dur = this.stepMs(before);
       this.nextStepAt = t + dur;
       const res = r.step();
-      for (const s of before.lastTriggered) this.pressedUntil.set(`${s.x},${s.y}`, t + 400);
+      for (const s of before.lastTriggered) {
+        this.pressedUntil.set(`${s.x},${s.y}`, t + 400);
+        this.events.push({ kind: 'sensor', x: s.x, y: s.y });
+      }
+      const drv = before.lastDrive;
+      if (drv && before.lastTriggered.length) {
+        if (drv.dirs.size) this.events.push({ kind: 'gear' });
+        for (const node of drv.flipped) this.events.push({ kind: 'switch', ...before.nodeCells[node]! });
+        if (drv.newlyLocked.length) this.events.push({ kind: 'lock' });
+      }
       if (before.lastDrive)
         for (const [node, dir] of before.lastDrive.dirs) this.gearTarget.set(node, (this.gearTarget.get(node) ?? 0) + dir * (Math.PI / 4));
       this.anim = { from, t0: t, dur };
       // 튜브에 막 들어간 순간 = 착지 (찌그러짐)
-      if (r.sim === before && before.mode === 'roll' && this.lastMode === 'fall') this.landAt = t;
+      if (r.sim === before && before.mode === 'roll' && this.lastMode === 'fall') {
+        this.landAt = t;
+        this.events.push({ kind: 'land', x: before.x, y: before.y });
+      }
       this.lastMode = r.sim === before ? before.mode : 'fall';
       if (res) {
-        if (res.status === 'binned' && res.bin !== null) this.binHits.set(res.bin, t);
+        if (res.status === 'binned' && res.bin !== null) {
+          this.binHits.set(res.bin, t);
+          this.events.push({ kind: 'bin', bin: res.bin });
+        } else this.events.push({ kind: 'stuck', x: before.x, y: before.y });
         const pause = 700 / this.speed;
         this.finished = { sim: before, color: r.queue[r.results.length - 1]!.color, until: t + pause };
         this.nextStepAt = t + pause;
@@ -123,6 +146,7 @@ export class Runner {
       y: this.anim.from.y + (endY - this.anim.from.y) * e,
       color,
       shake: stuck ? Math.sin(t / 25) * 3 : 0,
+      mood: (stuck ? 'dizzy' : shown.status === 'binned' ? 'happy' : falling ? 'fall' : 'roll') as Mood,
       squash,
       tilt,
       question: stuck,
@@ -155,6 +179,12 @@ export class Runner {
     return s;
   }
 }
+
+export type Mood = 'roll' | 'fall' | 'happy' | 'dizzy';
+export type RunEvent =
+  | { kind: 'sensor' | 'switch' | 'land' | 'stuck'; x: number; y: number }
+  | { kind: 'gear' | 'lock' }
+  | { kind: 'bin'; bin: number };
 
 export function el(tag: string, cls = '', text = ''): HTMLElement {
   const e = document.createElement(tag);
