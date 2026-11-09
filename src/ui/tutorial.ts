@@ -4,13 +4,14 @@
  *   몇 번 키를 누를지 정확히 말하고 팔레트 칸을 반짝인다. 해내면 다음 단계
  * - 2번: 가격/예산 말풍선 + 두 미노 잇기
  * - 3·4번: 새 조작(받침대, 끼워 넣기) 말풍선 한 번
- * - 6·7·8번: 새 부품 말풍선 한 번 (부품은 스스로 익힌다)
+ * - 6번: 새 부품(마개) 말풍선 한 번
+ * - 7·8번: 새 부품(스위치 / 센서·모터·기어)을 단계별로. 참조 풀이의 부품 자리를 빛낸다 (glowPart)
  * 말풍선 한 번짜리는 아무 키나 누르면 닫힌다. N = 다음 / 다시 보기.
- * 안내가 떠 있는 동안 자동 낙하는 멈춘다.
+ * 미노를 다루는 안내(꺼내기·옮기기·떨어뜨리기)가 떠 있는 동안 자동 낙하는 멈춘다.
  * 글 속 {key} 는 빛나는 자리 미노의 숫자 키로 바뀐다.
  */
 
-export type Anchor = 'spawn' | 'active' | 'inlet' | 'glow' | 'top' | 'bin';
+export type Anchor = 'spawn' | 'active' | 'inlet' | 'glow' | 'glowPart' | 'top' | 'bin';
 
 /** 가격/예산을 숨기는 입문 레벨 (길 잇기만) */
 export const HIDE_PRICE = new Set(['00-first-drop']);
@@ -27,6 +28,8 @@ export interface Step {
   anchor: Anchor;
   /** 참조 풀이의 몇 번째 미노 자리를 빛낼지 */
   glow?: number;
+  /** 참조 풀이의 몇 번째 부품 칸을 빛낼지 */
+  glowPart?: number;
 }
 
 export const LEVEL_TUTORIALS: Record<string, Step[]> = {
@@ -48,8 +51,20 @@ export const LEVEL_TUTORIALS: Record<string, Step[]> = {
   '02-tower': [{ text: '미노는 바닥이나 다른 미노 위에만 놓인다. 높은 길은 빈 미노(Q/E)로 받친다', keys: [['Q / E', '튜브 ↔ 빈']], anchor: 'top' }],
   '03-slide-under': [{ text: '↓ 로 한 칸씩 내린 뒤 옆으로 밀면 처마 밑으로 넣을 수 있다', keys: [['↓', '내리기'], ['← →', '밀기']], anchor: 'top' }],
   '05-plug': [{ text: '새 부품 마개: P 를 누르고 튜브 끝 칸에 끼우면 그 끝이 닫힌다', keys: [['P', '마개'], ['Space', '놓기']], anchor: 'top' }],
-  '06-switch': [{ text: '새 부품 스위치: 분기점에 끼우는 ㄱ자 관. 흰 점과 직각 갈래 하나를 잇는다', keys: [['W', '스위치'], ['A / B', '시작 방향'], ['X / Z', '흰 점 돌리기']], anchor: 'top' }],
-  '07-first-only': [{ text: '새 부품 센서·모터·기어: 센서를 지나면 붙은 모터가 돌고, 맞물린 기어는 서로 반대로 돈다', keys: [['S', '센서'], ['M', '모터 (다시: 방향)'], ['G', '기어']], anchor: 'top' }],
+  '06-switch': [
+    { text: '새 부품 스위치! 세 갈래가 만나는 분기점에 끼우는 ㄱ자 관이다. 먼저 미노로 갈림길을 짓는다 — 다 지으면 다음 안내 (막히면 T)', keys: [['T', '힌트']], on: ['fits'], anchor: 'top' },
+    { text: 'W 를 누르고 방향키로 빛나는 분기점에 커서를 옮겨 Space', keys: [['W', '스위치'], ['방향키', '커서'], ['Space', '놓기']], on: ['part:switch'], anchor: 'glowPart', glowPart: 0 },
+    { text: '흰 점 = 햄스터가 들어오는 쪽. X / Z 로 돌려 맞춘다. A / B 는 처음에 열 갈래 (흰 점에서 반시계 쪽 직각 = A, 시계 쪽 = B)', keys: [['X / Z', '흰 점 돌리기'], ['A / B', '시작 갈래']], anchor: 'glowPart', glowPart: 0 },
+    { text: 'R 로 실행해서 햄스터가 어느 갈래로 가는지 본다. 틀리면 R 로 리셋하고 A / B 를 바꾼다', keys: [['R', '실행']], on: ['run'], anchor: 'inlet' },
+  ],
+  '07-first-only': [
+    { text: '새 부품 셋: 센서·모터·기어. 햄스터가 센서를 지나면 붙은 모터가 돌고, 기어를 타고 스위치가 넘어간다. 먼저 미노로 갈림길과 받침을 짓는다 — 다 지으면 다음 안내 (막히면 T)', keys: [['T', '힌트']], on: ['fits'], anchor: 'top' },
+    { text: '빛나는 분기점에 스위치 (7번처럼 흰 점·A / B 맞추기)', keys: [['W', '스위치']], on: ['part:switch'], anchor: 'glowPart', glowPart: 0 },
+    { text: 'S: 햄스터가 지나가는 튜브 위 빛나는 칸에 센서', keys: [['S', '센서'], ['Space', '놓기']], on: ['part:sensor'], anchor: 'glowPart', glowPart: 1 },
+    { text: 'M: 센서 바로 옆 빛나는 칸에 모터. M 을 한 번 더 누르면 도는 방향(↻ / ↺)이 바뀐다', keys: [['M', '모터 · 방향']], on: ['part:motor'], anchor: 'glowPart', glowPart: 2 },
+    { text: 'G: 모터와 스위치 사이에 기어. 맞물린 것끼리는 서로 반대로 돈다 (노란 선)', keys: [['G', '기어']], on: ['part:gear'], anchor: 'glowPart', glowPart: 3 },
+    { text: '스위치 옆 "1→B" = 센서 1 을 지나면 B 쪽으로 민다 (이미 B 면 못 돌아서 잠긴다). 커서를 부품에 대면 ↻↺ 도 보인다. 확인하고 R', keys: [['R', '실행']], on: ['run'], anchor: 'top' },
+  ],
 };
 
 export class Tutorial {

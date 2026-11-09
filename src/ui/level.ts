@@ -12,7 +12,8 @@ import { artSize, burst, drawCelebration, hamsterIcon, renderArt, THEME, type Ov
 import { copyLink, el, fitCanvas, renderHints, Runner, shareUrl, type Screen } from './runner';
 import { encodeShare } from '../core/share';
 import { bestPrice, recordClear } from './storage';
-import { nextHint, type Hint } from '../core/hint';
+import { nextHint, partFits, type Hint } from '../core/hint';
+import { machinePreview } from '../core/machine';
 import { HINT_TEXT } from '../data/hints';
 import { PRICES } from '../data/prices';
 import { HIDE_PRICE, LEVEL_TUTORIALS, Tutorial } from './tutorial';
@@ -241,6 +242,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
           if (want && got && cellsKey(got) !== cellsKey(want))
             return void (tutWarn = say('빛나는 자리와 다르다. Delete 로 지우고 다시 꺼낸다'));
           tev('drop');
+          checkFits();
         });
       if (k === 'Delete' || k === 'Backspace') return done(() => ((tutWarn = null), (hintView = null), a ? (play.undo(), say('취소')) : res(play.removeLastMino(), '마지막 미노 제거')));
     } else {
@@ -276,6 +278,13 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       });
       if (k === 'Delete' || k === 'Backspace') return done(() => res(play.removePart(cursor.x, cursor.y), '부품 제거'));
     }
+  }
+
+  /** 안내가 '갈림길을 다 지으면' 을 기다리면: 참조 풀이의 부품이 전부 놓일 수 있게 됐는지 */
+  function checkFits() {
+    if (!tut?.step?.on?.includes('fits')) return;
+    const parts = lv.solution?.parts ?? [];
+    if (parts.length && parts.every((p) => partFits(play.board, p))) tev('fits');
   }
 
   function showHint() {
@@ -421,6 +430,8 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     const glow: { x: number; y: number }[] = [];
     const m = st.glow !== undefined ? lv.solution?.minos[st.glow] : undefined;
     if (m) for (const c of srsCells(m.id, m.r)) glow.push({ x: m.x + c.x, y: m.y + c.y });
+    const gp = st.glowPart !== undefined ? lv.solution?.parts[st.glowPart] : undefined;
+    if (gp) glow.push({ x: gp.x, y: gp.y });
     const center = (cs: { x: number; y: number }[]) => ({
       ax: cs.reduce((a, c) => a + c.x, 0) / cs.length + 0.5,
       ay: Math.min(...cs.map((c) => c.y)),
@@ -434,6 +445,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       below = true;
     }
     else if (st.anchor === 'glow' && glow.length) p = center(glow);
+    else if (st.anchor === 'glowPart' && gp) p = { ax: gp.x + 0.5, ay: gp.y };
     else if (st.anchor === 'inlet') p = { ax: lv.queue[0]?.inject === 'right' ? lv.w - 0.5 : 0.5, ay: 0.2 };
     else if (st.anchor === 'bin') {
       const i = Math.max(0, lv.bins.findIndex((g) => g.red + g.blue > 0));
@@ -445,6 +457,14 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     const side = st.anchor === 'active' && gx !== null ? (gx < lv.w / 2 ? 'right' : 'left') : undefined;
     if (tutWarn) return { glow, bubble: { text: tutWarn, keys: [['Delete', '지우기']], ax: p.ax, ay: p.ay, below, side, warn: true } };
     return { glow, bubble: { text: fill(st.text), keys: st.keys.map(([k, w]) => [fill(k), w] as [string, string]), ax: p.ax, ay: p.ay, below, side } };
+  }
+
+  /** 부품 모드 미리보기: 커서가 가리키는 부품과 이어진 센서는 회전 방향까지 */
+  function machineView() {
+    const m = machinePreview(play.board);
+    const here = (x: number, y: number) => x === cursor.x && y === cursor.y;
+    const focus = m.sensors.filter((s) => here(s.x, s.y) || s.motors.some((q) => here(q.x, q.y)) || s.turns.some((q) => here(q.x, q.y))).map((s) => s.n);
+    return { ...m, focus };
   }
 
   function refresh() {
@@ -539,7 +559,8 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     if (repeat.update(t)) refresh();
     // 느린 자동 낙하. 바닥에 닿으면 멈춰서 Space 를 기다린다 (저절로 고정하지 않음)
     // 안내 말풍선이 떠 있는 동안은 멈춘다 (천천히 읽고 따라 하도록)
-    if (tut?.active && !runner) gravityAt = t + GRAVITY_MS;
+    const MINO_EVENTS = ['spawn', 'move', 'rotate', 'drop'];
+    if (tut?.step?.on?.some((ev) => MINO_EVENTS.includes(ev)) && !runner) gravityAt = t + GRAVITY_MS;
     if (!runner && play.active && t >= gravityAt) {
       play.softDrop(t);
       play.stack.groundedAt = null;
@@ -573,6 +594,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       goals: lv.bins.map((b) => [b.red, b.blue]),
       fixedUids: play.built.fixed.minos,
       overlay: hintOverlay() ?? overlay(),
+      machine: mode === 'part' && !runner && lv.allowed.parts.some((t) => t !== 'plug') ? machineView() : null,
       time: t,
       binBounce: runner?.binBounce(t, lv.bins.length),
       failFlash: t < failUntil && Math.floor(t / 200) % 2 === 0,
@@ -582,6 +604,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     requestAnimationFrame(frame);
   }
 
+  checkFits();
   refresh();
   requestAnimationFrame(frame);
   const w = window as unknown as { __hamster: unknown };

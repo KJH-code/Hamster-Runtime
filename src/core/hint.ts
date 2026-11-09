@@ -65,6 +65,12 @@ function cloneBoard(b: Board): Board {
   return n;
 }
 
+/** 이 부품을 지금 판에 놓을 수 있는가 (판은 그대로) */
+export function partFits(board: Board, lp: LevelPart): boolean {
+  const b = cloneBoard(board);
+  return placeLevelPart(b, lp) === null && !brokenSwitch(b);
+}
+
 /** 판에 부품을 놓을 수 있는 만큼 놓고 돌려 본다. 풀리면 실제로 놓인 부품 목록 */
 function tryWithParts(level: Level, board: Board, fixed: Built['fixed'], parts: LevelPart[], prices: PriceTable): LevelPart[] | null {
   const b = cloneBoard(board);
