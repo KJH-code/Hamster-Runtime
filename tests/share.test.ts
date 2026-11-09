@@ -15,6 +15,13 @@ describe('풀이 공유 코드', () => {
       expect(d.layout).toEqual(l.solution);
     }
   });
+  it('힌트 표시: 붙이면 hinted, 예전 코드(4칸)는 힌트 없음', () => {
+    const l = lv('01');
+    expect(decodeShare(encodeShare(l.id, l.solution!, true)).hinted).toBe(true);
+    expect(decodeShare(encodeShare(l.id, l.solution!)).hinted).toBe(false);
+    const r = checkShare(encodeShare(l.id, l.solution!, true), LEVELS, PRICES);
+    expect(r.ok && r.hinted).toBe(true);
+  });
   it('참조 풀이 코드는 재검증 통과, 가격은 판에서 다시 센다', () => {
     const l = lv('08');
     const r = checkShare(encodeShare(l.id, l.solution!), LEVELS, PRICES);

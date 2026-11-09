@@ -464,6 +464,8 @@ export interface ArtView {
 
 export interface Overlay {
   glow: { x: number; y: number }[];
+  /** 방해되는 칸 (힌트): 빨간 테두리 */
+  bad?: { x: number; y: number }[];
   /** side: 빛나는 자리를 가리지 않게 말풍선을 판 한쪽 가장자리로 비켜 세운다 */
   bubble: { text: string; keys: [string, string][]; ax: number; ay: number; below?: boolean; side?: 'left' | 'right'; warn?: boolean } | null;
 }
@@ -774,6 +776,12 @@ export function drawOverlay(ctx: CanvasRenderingContext2D, t: Theme, o: Overlay,
     ctx.lineDashOffset = -time / 60;
     ctx.strokeRect(c.x * s + 2, OY + c.y * s + 2, s - 4, s - 4);
     ctx.setLineDash([]);
+  }
+  for (const c of o.bad ?? []) {
+    if (c.y < 0) continue;
+    ctx.strokeStyle = `rgba(229,72,77,${0.6 + 0.4 * pulse})`;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(c.x * s + 3, OY + c.y * s + 3, s - 6, s - 6);
   }
   const b = o.bubble;
   if (!b) return;

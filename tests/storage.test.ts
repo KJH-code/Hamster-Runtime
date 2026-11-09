@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { _resetForTest, bestCode, bestPrice, isUnlocked, recordClear } from '../src/ui/storage';
+import { _resetForTest, bestCode, bestHinted, bestPrice, isUnlocked, recordClear } from '../src/ui/storage';
 
 // 테스트 환경에는 localStorage 가 없다 → 메모리로 동작하는지 (try/catch 경로)
 describe('기록 (저장소 없음)', () => {
@@ -22,6 +22,27 @@ describe('기록 (저장소 없음)', () => {
     const ids = ['new', 'a', 'b'];
     recordClear('a', 5);
     expect([0, 1, 2].map((i) => isUnlocked(ids, i))).toEqual([true, true, true]);
+  });
+});
+
+describe('힌트 표시 (최저 기록을 만든 판 기준)', () => {
+  beforeEach(() => _resetForTest());
+  it('힌트로 깬 최저 → 표시, 같은 가격을 힌트 없이 → 사라짐', () => {
+    recordClear('a', 10, 'c1', true);
+    expect(bestHinted('a')).toBe(true);
+    recordClear('a', 12, 'c2', false); // 더 비쌈: 그대로
+    expect(bestHinted('a')).toBe(true);
+    recordClear('a', 10, 'c3', false);
+    expect(bestHinted('a')).toBe(false);
+    expect(bestCode('a')).toBe('c3');
+  });
+  it('더 싸게 힌트로 깨면 다시 표시, 같은 가격을 힌트로 다시 깨도 힌트 없는 기록은 그대로', () => {
+    recordClear('a', 10, 'c1', false);
+    recordClear('a', 10, 'c2', true);
+    expect(bestHinted('a')).toBe(false);
+    expect(bestCode('a')).toBe('c1');
+    recordClear('a', 8, 'c3', true);
+    expect(bestHinted('a')).toBe(true);
   });
 });
 

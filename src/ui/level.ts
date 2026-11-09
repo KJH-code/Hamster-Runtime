@@ -12,6 +12,9 @@ import { artSize, burst, drawCelebration, hamsterIcon, renderArt, THEME, type Ov
 import { copyLink, el, fitCanvas, renderHints, Runner, shareUrl, type Screen } from './runner';
 import { encodeShare } from '../core/share';
 import { bestPrice, recordClear } from './storage';
+import { nextHint, type Hint } from '../core/hint';
+import { HINT_TEXT } from '../data/hints';
+import { PRICES } from '../data/prices';
 import { HIDE_PRICE, LEVEL_TUTORIALS, Tutorial } from './tutorial';
 import { KeyRepeat } from './keyrepeat';
 import { renderPalette } from './palette';
@@ -111,7 +114,16 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   const tutSteps = o.record ? LEVEL_TUTORIALS[lv.id] : undefined;
   /** 튜토리얼: 아직 안 깬 레벨에서만 (N 으로 다시 볼 수 있다) */
   let tut = tutSteps && bestPrice(lv.id) === undefined ? new Tutorial(tutSteps) : null;
-  const tev = (name: string) => tut?.event(name);
+  const tev = (name: string) => {
+    // 놓았으면 힌트는 닫는다 (옮기는 동안은 그대로 둔다)
+    if (name === 'drop' || name === 'run' || name.startsWith('part:')) hintView = null;
+    tut?.event(name);
+  };
+  /** 힌트 (T): 처음엔 글, 그다음부터 미노·부품 자리 하나씩 */
+  let hintView: { text: string } | { hint: Hint } | null = null;
+  let hintTextSeen = false;
+  /** 자리 힌트를 본 횟수 (클리어 기록에 '힌트 사용' 표시) */
+  let hintCount = 0;
   /** 안내 중 잘못 놓았을 때 말풍선에 띄울 경고 (다음 꺼내기·지우기에서 사라짐) */
   let tutWarn: string | null = null;
   const say = (t: string) => (message = t);
@@ -159,6 +171,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     if (ctrl && (lower === 'y' || (lower === 'z' && e.shiftKey))) return done(() => editing() && say(play.redo() ? '다시 함' : '다시 할 것 없음'));
     if (ctrl || k === 'Shift') return;
     if (lower === 'r') return done(toggleRun);
+    if (lower === 't') return done(showHint);
     if (lower === 'f')
       return done(() => {
         speed = speed === 1 ? 2 : speed === 2 ? 4 : 1;
@@ -229,7 +242,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
             return void (tutWarn = say('빛나는 자리와 다르다. Delete 로 지우고 다시 꺼낸다'));
           tev('drop');
         });
-      if (k === 'Delete' || k === 'Backspace') return done(() => ((tutWarn = null), a ? (play.undo(), say('취소')) : res(play.removeLastMino(), '마지막 미노 제거')));
+      if (k === 'Delete' || k === 'Backspace') return done(() => ((tutWarn = null), (hintView = null), a ? (play.undo(), say('취소')) : res(play.removeLastMino(), '마지막 미노 제거')));
     } else {
       const move = (dx: number, dy: number) => {
         if (play.board.inBounds(cursor.x + dx, cursor.y + dy)) {
@@ -265,6 +278,65 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     }
   }
 
+  function showHint() {
+    if (runner) return say('실행 중에는 힌트를 못 본다 — R 로 리셋');
+    const text = HINT_TEXT[lv.id];
+    if (text && !hintTextSeen) {
+      hintTextSeen = true;
+      hintView = { text };
+      return;
+    }
+    say('힌트 찾는 중…');
+    // 탐색은 1초 남짓 걸릴 수 있어서 화면을 먼저 그린 뒤에
+    setTimeout(() => {
+      if (!alive) return;
+      const h = nextHint(lv, play.layout(), PRICES, { budgetMs: 1200, now: () => performance.now() });
+      hintView = { hint: h };
+      if (h.kind === 'mino' || h.kind === 'part') hintCount++;
+      say(h.kind === 'mino' ? '힌트: 빛나는 자리' : h.kind === 'part' ? '힌트: 빛나는 칸' : h.kind === 'done' ? '힌트: 다 맞다' : `힌트: ${h.reason}`);
+      refresh();
+    }, 30);
+  }
+
+  /** 힌트 말풍선: 빛나는 자리 + 무엇을 어떻게 */
+  function hintOverlay(): Overlay | null {
+    if (!hintView || runner) return null;
+    const more: [string, string] = ['T', '다음 힌트'];
+    if ('text' in hintView) return { glow: [], bubble: { text: hintView.text, keys: [more], ax: lv.w / 2, ay: 0.2 } };
+    const h = hintView.hint;
+    const L = play.layout();
+    const cellsOf = (m: { id: string; r: number; x: number; y: number }) => srsCells(m.id, m.r).map((c) => ({ x: m.x + c.x, y: m.y + c.y }));
+    const at = (cs: { x: number; y: number }[]) => ({ ax: cs.reduce((s2, c) => s2 + c.x, 0) / cs.length + 0.5, ay: Math.min(...cs.map((c) => c.y)) });
+    if (h.kind === 'mino') {
+      const glow = cellsOf(h.mino);
+      const bad = h.blockers.flatMap((i) => cellsOf(L.minos[i]!));
+      const def = MINOS.find((d) => d.id === h.mino.id)!;
+      const li = letters.indexOf(def.piece);
+      const variants = defsOf(def.piece);
+      const vi = variants.findIndex((d) => d.id === def.id);
+      const keys: [string, string][] = [[li >= 0 ? String(li + 1) : '?', def.name]];
+      if (vi > 0) keys.push(['Q / E', `'${def.name}' 로 바꾸기`]);
+      keys.push(more);
+      const text = `다음 미노: ${def.name} → 빛나는 자리${bad.length ? '. 빨간 테두리 미노가 길을 막는다 (Ctrl+Z 로 되돌린다)' : ''}`;
+      return { glow, bad, bubble: { text, keys, ...at(glow) } };
+    }
+    if (h.kind === 'part') {
+      const p = h.part;
+      const extra = p.type === 'motor' ? ` ${p.dir === 'ccw' ? '↺ 반시계' : '↻ 시계'}` : p.type === 'switch' ? ` (흰 점 ${({ N: '위', E: '오른쪽', S: '아래', W: '왼쪽' } as const)[p.common ?? 'N']}, 시작 ${p.start ?? 'A'})` : '';
+      const bad = h.blockers.map((i) => ({ x: L.parts[i]!.x, y: L.parts[i]!.y }));
+      return {
+        glow: [{ x: p.x, y: p.y }],
+        bad,
+        bubble: { text: `다음 부품: ${PART_NAMES[p.type]}${extra}${bad.length ? '. 그 칸의 다른 부품은 지운다' : ''}`, keys: [[KEY_OF[p.type], PART_NAMES[p.type]], more], ax: p.x + 0.5, ay: p.y },
+      };
+    }
+    if (h.kind === 'done') {
+      const bad = h.blockers.map((i) => ({ x: L.parts[i]!.x, y: L.parts[i]!.y }));
+      return { glow: [], bad, bubble: { text: bad.length ? '미노와 부품은 다 있다. 빨간 칸의 부품은 풀이에 없다 — 지우고 R' : '다 맞다. R 로 실행!', keys: [['R', '실행']], ax: lv.w / 2, ay: 0.2 } };
+    }
+    return { glow: [], bubble: { text: h.reason, keys: [], ax: lv.w / 2, ay: 0.2 } };
+  }
+
   function toggleRun() {
     if (runner) {
       runner = null;
@@ -275,6 +347,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       return say('리셋 — 다시 고칠 수 있다');
     }
     play.stack.cancelActive();
+    hintView = null;
     runner = new Runner(play.board, queueItems(lv), performance.now());
     runner.speed = speed;
     tev('run');
@@ -290,12 +363,13 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       tev('clear');
       tut = null; // 깼으면 안내는 닫는다 (N 으로 다시 볼 수 있다)
       let best = '';
-      clearCode = encodeShare(lv.id, play.layout());
+      const hinted = hintCount > 0;
+      clearCode = encodeShare(lv.id, play.layout(), hinted);
       if (o.record) {
-        const isNew = recordClear(lv.id, j.price, clearCode);
+        const isNew = recordClear(lv.id, j.price, clearCode, hinted);
         best = isNew ? ' · 새 최저 기록!' : ` · 최저 ${bestPrice(lv.id)}`;
       }
-      say(`★ 클리어!${hidePrice ? '' : ` 가격 ${j.price}${best}`}${o.onNext ? ' — Enter 다음 레벨' : o.onAllClear ? ' — Enter 끝 화면' : ''} · C 풀이 링크 복사`);
+      say(`★ 클리어!${hidePrice ? '' : ` 가격 ${j.price}${best}`}${hintCount ? ` · 💡 힌트 ${hintCount}번` : ''}${o.onNext ? ' — Enter 다음 레벨' : o.onAllClear ? ' — Enter 끝 화면' : ''} · C 풀이 링크 복사`);
     } else {
       const why: string[] = [];
       if (j.loop) why.push('무한 루프');
@@ -321,7 +395,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     if (mode === 'mino') {
       if (play.active) return [['← →', '옮기기 (꾹)'], ['↓', '빨리 내리기'], ['X / Z', '회전'], ['Space', '고정']];
       const pk = lv.allowed.parts.map((t) => KEY_OF[t]).join(' ');
-      return [[letters.length > 1 ? `1~${letters.length}` : '1', '미노'], ...(pk ? ([[pk, '부품']] as [string, string][]) : []), ['R', '실행'], ['?', '전체 키']];
+      return [[letters.length > 1 ? `1~${letters.length}` : '1', '미노'], ...(pk ? ([[pk, '부품']] as [string, string][]) : []), ['R', '실행'], ['T', '힌트'], ['?', '전체 키']];
     }
     const here = play.board.partAt(cursor.x, cursor.y);
     if (here?.type === 'switch' && !play.isFixedCell(cursor.x, cursor.y)) return [['A / B', '시작 방향'], ['X / Z', '공통(흰 점) 돌리기'], ['Delete', '지우기']];
@@ -451,7 +525,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       mode === 'mino'
         ? [['1~7', '미노 꺼내기 (저절로 천천히 내려옴)'], ['Q / E', '튜브 ↔ 빈 변형'], ['← →', '옮기기 (꾹 누르면 미끄러짐)'], ['↓', '빨리 내리기'], ['X / Z', '회전'], ['Space', '바로 떨어뜨려 고정'], ['Delete', '마지막 미노 지우기']]
         : [['방향키', '칸 고르기'], ['Space', '놓기'], ['M', '모터 방향 바꾸기'], ['X / Z', '스위치 공통 갈래'], ['A / B', '스위치 시작 상태'], ['Delete', '부품 지우기'], ['Esc', '미노로']];
-    rows.push(['S G M W P', '센서 · 기어 · 모터 · 스위치 · 마개'], ['F', '빨리가기 1× · 2× · 4×'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시'], ['R', '실행 / 리셋'], ['Esc', '레벨 목록'], ['? / H', '이 목록 열고 닫기'], ['N', '안내 다음 / 다시 보기']);
+    rows.push(['S G M W P', '센서 · 기어 · 모터 · 스위치 · 마개'], ['F', '빨리가기 1× · 2× · 4×'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시'], ['R', '실행 / 리셋'], ['Esc', '레벨 목록'], ['? / H', '이 목록 열고 닫기'], ['N', '안내 다음 / 다시 보기'], ['T', '힌트 (누를수록 자세히: 글 → 미노 자리 → 부품 자리)']);
     for (const [kk, what] of rows) {
       const row = el('div', 'krow');
       row.append(el('kbd', '', kk), el('span', '', what));
@@ -498,7 +572,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       bins: runner?.run.tally.bins ?? [],
       goals: lv.bins.map((b) => [b.red, b.blue]),
       fixedUids: play.built.fixed.minos,
-      overlay: overlay(),
+      overlay: hintOverlay() ?? overlay(),
       time: t,
       binBounce: runner?.binBounce(t, lv.bins.length),
       failFlash: t < failUntil && Math.floor(t / 200) % 2 === 0,
@@ -511,7 +585,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   refresh();
   requestAnimationFrame(frame);
   const w = window as unknown as { __hamster: unknown };
-  w.__hamster = { screen: 'level', play, get runner() { return runner; }, get message() { return message; }, get tutStep() { return tut?.active ? tut.index : -1; } };
+  w.__hamster = { screen: 'level', play, get runner() { return runner; }, get message() { return message; }, get tutStep() { return tut?.active ? tut.index : -1; }, get hint() { return hintView; } };
   return {
     key,
     keyUp(e: KeyboardEvent) {
