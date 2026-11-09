@@ -10,7 +10,7 @@ import { MINOS, PIECE_ORDER } from '../data/minos';
 import { artSize, renderArt, THEME } from './art';
 import type { Level } from '../core/level';
 import { fixedUids, levelModeKey, minoKey as placedKey, renderLevelPanel, saveReference, type SandboxState } from './levelEditor';
-import { renderHints, sizeCanvas, type Screen } from './runner';
+import { fitCanvas as fitBoard, renderHints, type Screen } from './runner';
 import { KeyRepeat } from './keyrepeat';
 
 type Mode = 'mino' | 'part' | 'queue' | 'level';
@@ -80,9 +80,11 @@ export function startSandbox(
     if (d === dims) return;
     dims = d;
     const [cw, ch] = artSize(ed.board);
-    ctx = sizeCanvas(canvas, cw, ch);
+    ctx = fitBoard(canvas, cw, ch, left);
   };
   fitCanvas();
+  const onResize = () => ((dims = ''), fitCanvas());
+  window.addEventListener('resize', onResize);
   left.append(canvas);
   const hints = el('div', 'hints');
   const msg = el('div', 'status');
@@ -515,6 +517,7 @@ export function startSandbox(
     dispose() {
       alive = false;
       repeat.clear();
+      window.removeEventListener('resize', onResize);
     },
   };
 }

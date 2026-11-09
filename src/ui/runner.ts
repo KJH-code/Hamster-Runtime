@@ -177,3 +177,24 @@ export async function copyLink(url: string): Promise<'copied' | 'prompt'> {
     return 'prompt';
   }
 }
+
+/**
+ * 판 캔버스를 창 크기에 맞춰 키운다. 그림은 논리 좌표(칸 40) 그대로, 배율만 바꾼다.
+ * 세로는 창 높이에서 위아래 안내 줄 자리를 빼고, 가로는 오른쪽 패널 자리를 뺀다.
+ */
+export function fitCanvas(canvas: HTMLCanvasElement, w: number, h: number, column?: HTMLElement): CanvasRenderingContext2D {
+  const reserveH = 200; // 모드 줄 + 키 안내 + 상태 줄 + 여백
+  const reserveW = 420; // 오른쪽 패널 + 간격
+  const k = Math.max(0.75, Math.min(1.8, (window.innerHeight - reserveH) / h, (window.innerWidth - reserveW) / w));
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(w * k * dpr);
+  canvas.height = Math.round(h * k * dpr);
+  canvas.style.width = `${w * k}px`;
+  canvas.style.height = `${h * k}px`;
+  canvas.style.maxWidth = 'none';
+  canvas.style.aspectRatio = '';
+  if (column) column.style.width = `${Math.max(w * k, 360)}px`;
+  const ctx = canvas.getContext('2d')!;
+  ctx.setTransform(dpr * k, 0, 0, dpr * k, 0, 0);
+  return ctx;
+}

@@ -9,7 +9,7 @@ import { LevelPlay } from '../core/play';
 import type { Dir, PartType } from '../core/types';
 import { MINOS, PIECE_ORDER, type PieceLetter } from '../data/minos';
 import { artSize, burst, drawCelebration, hamsterIcon, renderArt, THEME, type Overlay, type Particle } from './art';
-import { copyLink, el, renderHints, Runner, shareUrl, sizeCanvas, type Screen } from './runner';
+import { copyLink, el, fitCanvas, renderHints, Runner, shareUrl, type Screen } from './runner';
 import { encodeShare } from '../core/share';
 import { bestPrice, recordClear } from './storage';
 import { LEVEL_TUTORIALS, Tutorial } from './tutorial';
@@ -65,7 +65,9 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   const canvas = document.createElement('canvas');
   canvas.className = 'board';
   const [cw, ch] = artSize(play.board);
-  const ctx = sizeCanvas(canvas, cw, ch);
+  let ctx = fitCanvas(canvas, cw, ch, left);
+  const onResize = () => (ctx = fitCanvas(canvas, cw, ch, left));
+  window.addEventListener('resize', onResize);
   const hints = el('div', 'hints');
   const msg = el('div', 'status');
   left.append(modeBar, canvas, hints, msg);
@@ -470,6 +472,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     dispose() {
       alive = false;
       repeat.clear();
+      window.removeEventListener('resize', onResize);
     },
   };
 }

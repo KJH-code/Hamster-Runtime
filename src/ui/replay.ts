@@ -8,7 +8,7 @@ import { checkShare } from '../core/share';
 import { LEVELS } from '../data/levels';
 import { PRICES } from '../data/prices';
 import { artSize, renderArt, THEME } from './art';
-import { el, renderHints, Runner, sizeCanvas, type Screen } from './runner';
+import { el, fitCanvas, renderHints, Runner, type Screen } from './runner';
 import { bestPrice, isUnlocked } from './storage';
 
 export interface ReplayOpts {
@@ -45,7 +45,9 @@ export function startReplay(root: HTMLElement, o: ReplayOpts): Screen {
     if (res.layout) applyLayout(lv, built, res.layout);
   }
   const [cw, ch] = built ? artSize(built.board) : [320, 200];
-  const ctx = sizeCanvas(canvas, cw, ch);
+  let ctx = fitCanvas(canvas, cw, ch, left);
+  const onResize = () => (ctx = fitCanvas(canvas, cw, ch, left));
+  window.addEventListener('resize', onResize);
 
   const card = (...kids: HTMLElement[]) => {
     const c = el('div', 'card');
@@ -137,6 +139,7 @@ export function startReplay(root: HTMLElement, o: ReplayOpts): Screen {
     key,
     dispose() {
       alive = false;
+      window.removeEventListener('resize', onResize);
     },
   };
 }
