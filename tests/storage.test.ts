@@ -18,6 +18,11 @@ describe('기록 (저장소 없음)', () => {
     recordClear('a', 5);
     expect([0, 1, 2].map((i) => isUnlocked(ids, i))).toEqual([true, true, false]);
   });
+  it('이미 깬 레벨은 앞 레벨을 안 깼어도 열려 있다 (앞에 새 레벨이 끼어든 경우)', () => {
+    const ids = ['new', 'a', 'b'];
+    recordClear('a', 5);
+    expect([0, 1, 2].map((i) => isUnlocked(ids, i))).toEqual([true, true, true]);
+  });
 });
 
 describe('최저 기록 풀이 코드', () => {

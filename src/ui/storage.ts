@@ -72,7 +72,8 @@ export function bestCode(levelId: string): string | undefined {
 /** 순서대로 해금: 첫 레벨은 항상, 나머지는 바로 앞 레벨을 클리어했으면 */
 export function isUnlocked(ids: string[], index: number): boolean {
   if (index <= 0) return true;
-  return bestPrice(ids[index - 1]!) !== undefined;
+  // 이미 깬 레벨은 계속 열려 있다 (앞에 새 레벨이 끼어들어도 기록이 잠기지 않게)
+  return bestPrice(ids[index - 1]!) !== undefined || bestPrice(ids[index]!) !== undefined;
 }
 
 /** 테스트용 */

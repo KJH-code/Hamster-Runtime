@@ -10,8 +10,8 @@ import { PRICES } from '../src/data/prices';
 const solve = (lv: Level, layout: Layout) => verifyLayout(lv, layout, PRICES);
 
 describe('레벨 세트', () => {
-  it('15개, 번호 순서', () => {
-    expect(LEVELS.map((l) => l.id.slice(0, 2))).toEqual(['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15']);
+  it('16개, 번호 순서 (00 = 입문)', () => {
+    expect(LEVELS.map((l) => l.id.slice(0, 2))).toEqual(['00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15']);
   });
   for (const lv of LEVELS) {
     describe(lv.id, () => {
