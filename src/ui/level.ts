@@ -11,7 +11,9 @@ import { MINOS, PIECE_ORDER, type PieceLetter } from '../data/minos';
 import { artSize, burst, drawCelebration, hamsterIcon, renderArt, THEME, type Overlay, type Particle } from './art';
 import { copyLink, el, fitCanvas, renderHints, Runner, shareUrl, type Screen } from './runner';
 import { encodeShare } from '../core/share';
-import { bestPrice, recordClear } from './storage';
+import { bestPrice, isMuted, recordClear, setMuted } from './storage';
+import { Fx } from './fx';
+import { sfx } from './sound';
 import { nextHint, partFits, type Hint } from '../core/hint';
 import { machinePreview } from '../core/machine';
 import { HINT_TEXT } from '../data/hints';
@@ -76,7 +78,12 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   window.addEventListener('resize', onResize);
   const hints = el('div', 'hints');
   const msg = el('div', 'status');
-  left.append(modeBar, canvas, hints, msg);
+  // 판 위 클리어 카드를 겹쳐 띄우려고 캔버스를 한 겹 감싼다
+  const boardWrap = el('div', 'boardwrap');
+  boardWrap.append(canvas);
+  left.append(modeBar, boardWrap, hints, msg);
+  const fx = new Fx();
+  let clearCard: HTMLElement | null = null;
   const title = el('h1', '', `${o.number ? `${o.number}. ` : '시험 플레이 · '}${lv.name}`);
   const mech = el('div', 'mech', lv.mechanic);
   const priceBox = el('div', 'price');
@@ -142,6 +149,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     const r = play.spawn(d.id, performance.now());
     if (r.ok) {
       tutWarn = null;
+      sfx('spawn');
       tev('spawn');
       gravityAt = performance.now() + GRAVITY_MS;
     }
@@ -173,6 +181,12 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     if (ctrl || k === 'Shift') return;
     if (lower === 'r') return done(toggleRun);
     if (lower === 't') return done(showHint);
+    if (lower === 'v')
+      return done(() => {
+        setMuted(!isMuted());
+        say(isMuted() ? '소리 끔 (V 로 켜기)' : '소리 켬');
+        sfx('hint');
+      });
     if (lower === 'f')
       return done(() => {
         speed = speed === 1 ? 2 : speed === 2 ? 4 : 1;
@@ -225,14 +239,16 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       if (k === 'ArrowDown') return held(() => {
         if (play.active && play.softDrop(performance.now())) gravityAt = performance.now() + GRAVITY_MS;
       });
-      if (lower === 'x') return done(() => a && play.rotate(1, now) && tev('rotate'));
-      if (lower === 'z') return done(() => a && play.rotate(-1, now) && tev('rotate'));
+      if (lower === 'x') return done(() => a && play.rotate(1, now) && (sfx('rotate'), tev('rotate')));
+      if (lower === 'z') return done(() => a && play.rotate(-1, now) && (sfx('rotate'), tev('rotate')));
       if (k === ' ' || k === 'Enter')
         return done(() => {
           if (!a) return spawnCurrent();
+          const linksBefore = computeLinks(play.board).link.slice();
           const r = play.hardDrop();
           res(r, '놓음');
           if (!r.ok) return;
+          dropJuice(linksBefore);
           // 안내가 빛나는 자리를 가리키는데 다른 데 놓았으면 알려 주고 그 단계에 머문다
           const want = glowMino()?.m;
           const ms = play.layout().minos;
@@ -273,7 +289,11 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       if (k === ' ' || k === 'Enter') return done(() => {
         if (!partType) return say('부품 키를 먼저 (S G M W P)');
         const r = play.placePart(cursor.x, cursor.y, partType, partType === 'motor' ? motorDir : undefined);
-        if (r.ok) tev(`part:${partType}`);
+        if (r.ok) {
+          sfx('place');
+          fx.spark(cursor.x, cursor.y, performance.now(), '#9be7ff', 10);
+          tev(`part:${partType}`);
+        }
         res(r, `${partLabel(partType)} 놓음`);
       });
       if (k === 'Delete' || k === 'Backspace') return done(() => res(play.removePart(cursor.x, cursor.y), '부품 제거'));
@@ -346,8 +366,82 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     return { glow: [], bubble: { text: h.reason, keys: [], ax: lv.w / 2, ay: 0.2 } };
   }
 
+  /** 떨어뜨린 순간: 놓인 칸 반짝 + 바닥 먼지 + 살짝 흔들림 + 새로 이어진 이음매 반짝 */
+  function dropJuice(linksBefore: Uint8Array | number[]) {
+    const now = performance.now();
+    const p = play.board.placed[play.board.placed.length - 1];
+    if (!p) return;
+    const cells = p.cells.map((c) => ({ x: p.x + c.x, y: p.y + c.y }));
+    const has = (x: number, y: number) => cells.some((c) => c.x === x && c.y === y);
+    fx.flash(cells, now);
+    fx.dust(cells.filter((c) => !has(c.x, c.y + 1)), now);
+    fx.shake(1.5, 110, now);
+    sfx('drop');
+    const after = computeLinks(play.board).link;
+    let joined = 0;
+    for (let i = 0; i < after.length; i++) {
+      const fresh = (after[i] ?? 0) & ~(linksBefore[i] ?? 0);
+      const x = i % play.board.w;
+      const y = Math.floor(i / play.board.w);
+      // 오른쪽(2)·아래(4) 이음매만 세어 두 번 세지 않는다
+      if (fresh & 2) (fx.spark(x + 0.5, y, now), joined++);
+      if (fresh & 4) (fx.spark(x, y + 0.5, now), joined++);
+    }
+    if (joined) setTimeout(() => sfx('connect'), 60);
+  }
+
+  /** 실행 중 사건 → 소리·반짝임 */
+  function runJuice(now: number) {
+    if (!runner) return;
+    for (const e of runner.drainEvents()) {
+      if (e.kind === 'sensor') (sfx('sensor'), fx.spark(e.x, e.y, now, '#9be7ff', 12));
+      else if (e.kind === 'gear') sfx('gear');
+      else if (e.kind === 'switch') (sfx('switch'), fx.spark(e.x, e.y, now, '#ffe14a', 18));
+      else if (e.kind === 'lock') (sfx('lock'), fx.shake(2, 160, now));
+      else if (e.kind === 'bin') {
+        sfx('bin');
+        const bx = e.bin * BIN_WIDTH + Math.min(BIN_WIDTH, lv.w - e.bin * BIN_WIDTH) / 2 - 0.5;
+        fx.spark(bx, lv.h + 0.2, now, '#ffe14a', 20);
+      } else if (e.kind === 'stuck') fx.shake(2.5, 200, now);
+    }
+  }
+
+  /** 판 위 클리어 카드: 별 셋 (클리어 · 만든 사람 풀이 가격 이하 · 힌트 없이), 가격·기록, 다음 키 */
+  function showCard(price: number, isNew: boolean) {
+    clearCard?.remove();
+    const cardEl = el('div', 'clearcard');
+    clearCard = cardEl;
+    cardEl.append(el('div', 'cc-title', '클리어!'));
+    if (!hidePrice) {
+      const ref = Math.ceil(lv.budget / 2);
+      const stars: [boolean, string][] = [
+        [true, '클리어'],
+        [price <= ref, `만든 사람 풀이(${ref}) 이하`],
+        [hintCount === 0, '힌트 없이'],
+      ];
+      const row = el('div', 'cc-stars');
+      stars.forEach(([on, what], i) => {
+        const st = el('div', 'cc-star' + (on ? ' on' : ''));
+        st.style.animationDelay = `${0.15 + i * 0.15}s`;
+        st.append(el('span', 'cc-s', on ? '★' : '☆'), el('span', 'cc-w', what));
+        row.append(st);
+      });
+      cardEl.append(row);
+      const best = o.record ? bestPrice(lv.id) : undefined;
+      cardEl.append(el('div', 'cc-price', `가격 ${price} / ${lv.budget}${isNew ? ' · 새 최저 기록!' : best !== undefined ? ` · 최저 ${best}` : ''}`));
+    }
+    const keys = el('div', 'hints');
+    const pairs: [string, string][] = [...(o.onNext ? ([['Enter', '다음 레벨']] as [string, string][]) : o.onAllClear ? ([['Enter', '끝 화면']] as [string, string][]) : []), ['C', '풀이 링크'], ['R', '다시 고치기']];
+    renderHints(keys, pairs);
+    cardEl.append(keys);
+    boardWrap.append(cardEl);
+  }
+
   function toggleRun() {
     if (runner) {
+      clearCard?.remove();
+      clearCard = null;
+      fx.clear();
       runner = null;
       cleared = false;
       clearCode = null;
@@ -370,6 +464,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       cleared = true;
       celebrate = { ps: burst(cw / 2, ch * 0.32, now), t0: now };
       tev('clear');
+      sfx('clear');
       tut = null; // 깼으면 안내는 닫는다 (N 으로 다시 볼 수 있다)
       let best = '';
       const hinted = hintCount > 0;
@@ -377,7 +472,8 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       if (o.record) {
         const isNew = recordClear(lv.id, j.price, clearCode, hinted);
         best = isNew ? ' · 새 최저 기록!' : ` · 최저 ${bestPrice(lv.id)}`;
-      }
+        showCard(j.price, isNew);
+      } else showCard(j.price, false);
       say(`★ 클리어!${hidePrice ? '' : ` 가격 ${j.price}${best}`}${hintCount ? ` · 💡 힌트 ${hintCount}번` : ''}${o.onNext ? ' — Enter 다음 레벨' : o.onAllClear ? ' — Enter 끝 화면' : ''} · C 풀이 링크 복사`);
     } else {
       const why: string[] = [];
@@ -385,6 +481,8 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       if (!j.binsOk.every(Boolean)) why.push('통 조건이 맞지 않음');
       if (j.overBudget) why.push(`예산 초과 (${j.price} > ${lv.budget})`);
       failUntil = now + 1600;
+      sfx('fail');
+      fx.shake(4, 260, now);
       say(`✗ 실패: ${why.join(' · ')} — R 로 리셋하고 고친다 (Delete = 마지막 미노 지우기)`);
     }
   }
@@ -545,7 +643,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       mode === 'mino'
         ? [['1~7', '미노 꺼내기 (저절로 천천히 내려옴)'], ['Q / E', '튜브 ↔ 빈 변형'], ['← →', '옮기기 (꾹 누르면 미끄러짐)'], ['↓', '빨리 내리기'], ['X / Z', '회전'], ['Space', '바로 떨어뜨려 고정'], ['Delete', '마지막 미노 지우기']]
         : [['방향키', '칸 고르기'], ['Space', '놓기'], ['M', '모터 방향 바꾸기'], ['X / Z', '스위치 공통 갈래'], ['A / B', '스위치 시작 상태'], ['Delete', '부품 지우기'], ['Esc', '미노로']];
-    rows.push(['S G M W P', '센서 · 기어 · 모터 · 스위치 · 마개'], ['F', '빨리가기 1× · 2× · 4×'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시'], ['R', '실행 / 리셋'], ['Esc', '레벨 목록'], ['? / H', '이 목록 열고 닫기'], ['N', '안내 다음 / 다시 보기'], ['T', '힌트 (누를수록 자세히: 글 → 미노 자리 → 부품 자리)']);
+    rows.push(['S G M W P', '센서 · 기어 · 모터 · 스위치 · 마개'], ['F', '빨리가기 1× · 2× · 4×'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시'], ['R', '실행 / 리셋'], ['Esc', '레벨 목록'], ['? / H', '이 목록 열고 닫기'], ['N', '안내 다음 / 다시 보기'], ['T', '힌트 (누를수록 자세히: 글 → 미노 자리 → 부품 자리)'], ['V', '소리 끄기 / 켜기']);
     for (const [kk, what] of rows) {
       const row = el('div', 'krow');
       row.append(el('kbd', '', kk), el('span', '', what));
@@ -568,6 +666,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     }
     if (runner) {
       const out = runner.frame(t);
+      runJuice(t);
       if (out) refresh();
       if (out && runner.run.done) {
         finish();
@@ -600,7 +699,11 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       failFlash: t < failUntil && Math.floor(t / 200) % 2 === 0,
       blink: Math.floor(t / 400) % 2 === 0,
     });
-    if (celebrate && !drawCelebration(ctx, celebrate.ps, celebrate.t0, t, cw, ch)) celebrate = null;
+    fx.draw(ctx, t);
+    const [ox, oy] = fx.offset(t);
+    canvas.style.transform = ox || oy ? `translate(${ox}px, ${oy}px)` : '';
+    // 축하 폭죽만 (글자 배지는 클리어 카드가 대신한다)
+    if (celebrate && !drawCelebration(ctx, celebrate.ps, -1e9, t, cw, ch)) celebrate = null;
     requestAnimationFrame(frame);
   }
 
