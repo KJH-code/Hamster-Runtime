@@ -11,6 +11,7 @@ import { artSize, renderArt, THEME } from './art';
 import type { Level } from '../core/level';
 import { fixedUids, levelModeKey, minoKey as placedKey, renderLevelPanel, saveReference, type SandboxState } from './levelEditor';
 import { renderHints, sizeCanvas, type Screen } from './runner';
+import { KeyRepeat } from './keyrepeat';
 
 type Mode = 'mino' | 'part' | 'queue' | 'level';
 const PARTS: { type: PartType; dir?: Dir; label: string }[] = [
@@ -91,7 +92,7 @@ export function startSandbox(
   const keysBox = el('div', 'keys');
   const keysHead = el('h2', '', '전체 키 (? 로 닫기)');
   let helpOpen = false;
-  let shiftAlone = false;
+  const repeat = new KeyRepeat();
   const queueBox = el('div', 'queue');
   const tallyBox = el('div', 'tally');
   const levelBox = el('div', '');
@@ -129,16 +130,12 @@ export function startSandbox(
     const k = e.key;
     const lower = k.length === 1 ? k.toLowerCase() : k;
     const ctrl = e.ctrlKey || e.metaKey;
-    if (k !== 'Shift') shiftAlone = false;
+    if (e.repeat && k.startsWith('Arrow') && mode !== 'queue' && mode !== 'level') return void e.preventDefault(); // 꾹 누르기는 직접 반복
     if (k === 'Escape') return handled(e, onExit);
     if (k === '?' || (lower === 'h' && mode !== 'level')) return handled(e, () => (helpOpen = !helpOpen));
     if (ctrl && lower === 'z' && !e.shiftKey) return handled(e, () => (ed.undo() ? (resetRun(), say('되돌림')) : say('되돌릴 것 없음')));
     if (ctrl && (lower === 'y' || (lower === 'z' && e.shiftKey))) return handled(e, () => (ed.redo() ? (resetRun(), say('다시 함')) : say('다시 할 것 없음')));
-    if (ctrl) return;
-    if (k === 'Shift') {
-      if (!e.repeat) shiftAlone = true;
-      return;
-    }
+    if (ctrl || k === 'Shift') return;
     if (k === 'Tab') return handled(e, () => ((mode = mode === 'queue' ? lastEditMode : 'queue'), tev(`mode:${mode}`)));
     if (lower === 'l') return handled(e, () => ((mode = mode === 'level' ? lastEditMode : 'level'), tev(`mode:${mode}`)));
     if (mode === 'level') {
@@ -150,6 +147,23 @@ export function startSandbox(
     }
     if (lower === 'r') return handled(e, toggleRun);
     if (lower === 'f') return handled(e, toggleFixed);
+    // 숫자 = 미노, 글자 = 부품 (모드 전환 키 없음). 대기열 모드에서는 숫자가 색
+    if (mode !== 'queue') {
+      if (/^[1-7]$/.test(k) && mode === 'part') {
+        mode = 'mino';
+        lastEditMode = 'mino';
+      }
+      const PK: Record<string, number> = { s: 0, g: 1, m: 2, w: 4, p: 5 };
+      if (lower in PK)
+        return handled(e, () => {
+          let i = PK[lower]!;
+          if (lower === 'm' && mode === 'part' && (partIdx === 2 || partIdx === 3)) i = partIdx === 2 ? 3 : 2; // M 다시: 방향
+          partIdx = i;
+          mode = 'part';
+          lastEditMode = 'part';
+          say(`${PARTS[partIdx]!.label} — 방향키로 칸을 고르고 Space`);
+        });
+    }
 
     if (mode === 'mino') return minoKey(e, k, lower);
     if (mode === 'part') return partKey(e, k, lower);
@@ -206,10 +220,11 @@ export function startSandbox(
       const n = variantsOf(p).length;
       variant[p] = ((variant[p] ?? 0) + (lower === 'e' ? 1 : -1) + n) % n;
     });
-    if (k === 'ArrowLeft') return handled(e, () => move(-1, 0));
-    if (k === 'ArrowRight') return handled(e, () => move(1, 0));
-    if (k === 'ArrowDown') return handled(e, () => move(0, 1));
-    if (k === 'ArrowUp') return handled(e, () => move(0, -1));
+    const held = (dx: number, dy: number) => handled(e, () => repeat.press(k, performance.now(), () => (move(dx, dy), refresh())));
+    if (k === 'ArrowLeft') return held(-1, 0);
+    if (k === 'ArrowRight') return held(1, 0);
+    if (k === 'ArrowDown') return held(0, 1);
+    if (k === 'ArrowUp') return held(0, -1);
     if (lower === 'x') return handled(e, () => rotate(1));
     if (lower === 'z') return handled(e, () => rotate(-1));
     if (k === ' ' || k === 'Enter')
@@ -240,11 +255,11 @@ export function startSandbox(
         cursor.y += dy;
       }
     };
-    if (/^[1-6]$/.test(k)) return handled(e, () => (partIdx = Number(k) - 1));
-    if (k === 'ArrowLeft') return handled(e, () => move(-1, 0));
-    if (k === 'ArrowRight') return handled(e, () => move(1, 0));
-    if (k === 'ArrowDown') return handled(e, () => move(0, 1));
-    if (k === 'ArrowUp') return handled(e, () => move(0, -1));
+    const held = (dx: number, dy: number) => handled(e, () => repeat.press(k, performance.now(), () => (move(dx, dy), refresh())));
+    if (k === 'ArrowLeft') return held(-1, 0);
+    if (k === 'ArrowRight') return held(1, 0);
+    if (k === 'ArrowDown') return held(0, 1);
+    if (k === 'ArrowUp') return held(0, -1);
     if (lower === 'x' || lower === 'z') return handled(e, () => result(ed.rotateSwitch(cursor.x, cursor.y, lower === 'x' ? 1 : -1), '스위치 공통 갈래 바꿈'));
     if (lower === 'a' || lower === 'b')
       return handled(e, () => result(ed.setSwitchStart(cursor.x, cursor.y, lower.toUpperCase() as 'A' | 'B'), `시작 상태 ${lower.toUpperCase()}`));
@@ -325,7 +340,7 @@ export function startSandbox(
     if (mode === 'mino') return [['1~7', '모양'], ['방향키', '옮기기'], ['X / Z', '회전'], ['Space', '놓기']];
     if (mode === 'part') {
       if (ed.board.partAt(cursor.x, cursor.y)?.type === 'switch') return [['A / B', '시작 방향'], ['X / Z', '공통(흰 점) 돌리기'], ['Delete', '지우기']];
-      return [['방향키', '칸 고르기'], ['1~6', '부품 고르기'], ['Space', '놓기'], ['Shift', '미노로']];
+      return [['방향키', '칸 고르기'], ['S G M W P', '부품'], ['Space', '놓기'], ['숫자', '미노로']];
     }
     if (mode === 'queue') return [['↑ ↓', '햄스터 고르기'], ['← →', '투입구'], ['1 / 2', '색'], ['Space', '추가']];
     return [['↑ ↓', '항목'], ['← → / Space', '값 바꾸기'], ['P', '참조 풀이로 저장'], ['T', '시험 플레이']];
@@ -369,11 +384,11 @@ export function startSandbox(
       mode === 'mino'
         ? [['1~7', '모양'], ['Q / E', '변형(튜브/빈) 순환'], ['방향키', '미노 이동'], ['X / Z', '회전 (시계/반시계)'], ['Space / Enter', '놓기'], ['Delete', '겹치는 미노 제거'], ['F', '겹치는 미노 고정(레벨용)']]
         : mode === 'part'
-          ? [['1~6', '부품'], ['방향키', '칸 커서 이동'], ['Space / Enter', '부품 놓기'], ['X / Z', '스위치 공통 갈래 돌리기'], ['A / B', '스위치 시작 상태'], ['Delete', '부품 제거 (없으면 미노)'], ['F', '부품 고정(레벨용)']]
+          ? [['S G M W P', '센서·기어·모터(다시: 방향)·스위치·마개'], ['방향키', '칸 커서 이동'], ['Space / Enter', '부품 놓기'], ['X / Z', '스위치 공통 갈래 돌리기'], ['A / B', '스위치 시작 상태'], ['Delete', '부품 제거 (없으면 미노)'], ['F', '부품 고정(레벨용)']]
           : mode === 'queue'
             ? [['↑ / ↓', '햄스터 선택'], ['← / →', '투입구 왼/오'], ['1 / 2', '색 빨강/파랑'], ['Space / Enter', '선택 뒤에 추가'], ['Delete', '삭제']]
             : [['↑ / ↓', '항목 고르기'], ['← / →', '숫자 바꾸기'], ['Space', '사용 가능 켜고 끄기'], ['Enter', '글자 넣기'], ['P', '현재 배치를 참조 풀이로 저장'], ['T', '저장한 레벨 시험 플레이']];
-    rows.push(['Shift', '미노 ↔ 부품 모드'], ['Tab', '대기열 모드'], ['L', '레벨 설정 모드'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시 하기'], ['R', '실행 / 리셋 (레벨 모드 밖)'], ['Esc', '레벨 목록'], ['? / H', '이 목록 열고 닫기']);
+    rows.push(['숫자 / 글자', '미노 / 부품 바로 고르기'], ['Tab', '대기열 모드'], ['L', '레벨 설정 모드'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시 하기'], ['R', '실행 / 리셋 (레벨 모드 밖)'], ['Esc', '레벨 목록'], ['? / H', '이 목록 열고 닫기']);
     for (const [key, what] of rows) {
       const r = el('div', 'krow');
       r.append(el('kbd', '', key), el('span', '', what));
@@ -409,6 +424,7 @@ export function startSandbox(
   let alive = true;
   function frame(t: number) {
     if (!alive) return;
+    if (repeat.update(t)) refresh();
     const dt = Math.min(0.1, (t - last) / 1000);
     last = t;
     if (running && run && !run.done && t >= nextStepAt) {
@@ -494,15 +510,11 @@ export function startSandbox(
   return {
     key,
     keyUp(e: KeyboardEvent) {
-      if (e.key !== 'Shift' || !shiftAlone) return;
-      shiftAlone = false;
-      mode = mode === 'mino' ? 'part' : mode === 'part' ? 'mino' : lastEditMode === 'mino' ? 'part' : 'mino';
-      lastEditMode = mode as 'mino' | 'part';
-      tev(`mode:${mode}`);
-      refresh();
+      repeat.release(e.key);
     },
     dispose() {
       alive = false;
+      repeat.clear();
     },
   };
 }
