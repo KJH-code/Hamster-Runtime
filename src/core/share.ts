@@ -1,6 +1,6 @@
 /**
  * 풀이 공유 코드. 순수 로직.
- * 코드 = 레벨 id + 떨어뜨린 미노(순서) + 부품 → 짧은 문자열 (base64url).
+ * 코드 = 레벨 id + 떨어뜨린 미노(순서) + 부품 (+ 힌트를 썼으면 표시) → 짧은 문자열 (base64url).
  * 받는 쪽은 코드를 믿지 않고 엔진(verifyLayout)으로 다시 돌려 클리어·가격을 확인한다.
  */
 import type { MinoDef } from '../data/minos';
@@ -26,7 +26,7 @@ function fromB64(s: string): string {
   return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
 }
 
-export function encodeShare(levelId: string, layout: Layout): string {
+export function encodeShare(levelId: string, layout: Layout, hinted = false): string {
   const minos = layout.minos.map((m) => [m.id, m.r, m.x, m.y]);
   const parts = layout.parts.map((p) => {
     let extra = '';
@@ -34,12 +34,15 @@ export function encodeShare(levelId: string, layout: Layout): string {
     if (p.type === 'switch') extra = `${p.common ?? 'N'}${p.start ?? 'A'}`;
     return [p.x, p.y, PART_CODE[p.type]! + extra];
   });
-  return toB64(JSON.stringify([VERSION, levelId, minos, parts]));
+  // 힌트 표시는 끝에 1 을 붙인다 (없으면 예전 코드와 같은 모양)
+  return toB64(JSON.stringify(hinted ? [VERSION, levelId, minos, parts, 1] : [VERSION, levelId, minos, parts]));
 }
 
 export interface Shared {
   levelId: string;
   layout: Layout;
+  /** 이 풀이를 만들 때 힌트(미노·부품 자리)를 봤는가 */
+  hinted: boolean;
 }
 
 /** 코드 → 레벨 id + 배치. 깨졌으면 이유와 함께 throw */
@@ -53,8 +56,8 @@ export function decodeShare(code: string): Shared {
   const bad = (why: string): never => {
     throw new Error(`풀이 코드가 이상하다: ${why}`);
   };
-  if (!Array.isArray(raw) || raw.length !== 4) bad('모양');
-  const [v, levelId, minos, parts] = raw as unknown[];
+  if (!Array.isArray(raw) || (raw.length !== 4 && raw.length !== 5)) bad('모양');
+  const [v, levelId, minos, parts, hintFlag] = raw as unknown[];
   if (v !== VERSION) bad(`버전 ${String(v)}`);
   if (typeof levelId !== 'string') bad('레벨');
   if (!Array.isArray(minos) || !Array.isArray(parts)) bad('목록');
@@ -81,11 +84,11 @@ export function decodeShare(code: string): Shared {
     }
     layout.parts.push(lp);
   }
-  return { levelId: levelId as string, layout };
+  return { levelId: levelId as string, layout, hinted: hintFlag === 1 };
 }
 
 export type ShareCheck =
-  | { ok: true; level: Level; layout: Layout; judgement: Judgement }
+  | { ok: true; level: Level; layout: Layout; judgement: Judgement; hinted: boolean }
   | { ok: false; reason: string; level?: Level; layout?: Layout; judgement?: Judgement };
 
 /** 코드를 풀고 엔진으로 다시 돌려 확인 (가격은 코드가 아니라 판에서 다시 센다) */
@@ -106,7 +109,7 @@ export function checkShare(code: string, levels: Level[], prices: PriceTable, de
     const why = j.loop ? '무한 루프' : !j.binsOk.every(Boolean) ? '통 조건이 맞지 않는다' : `예산 초과 (${j.price} > ${level.budget})`;
     return { ok: false, reason: why, level, layout: sh.layout, judgement: j };
   }
-  return { ok: true, level, layout: sh.layout, judgement: j };
+  return { ok: true, level, layout: sh.layout, judgement: j, hinted: sh.hinted };
 }
 
 /** 링크 해시(#s=...)에서 코드 꺼내기 */
