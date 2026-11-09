@@ -4,6 +4,7 @@
  * - 튜브 끝 상태가 한눈에: 이어진 이음매 = 연결 고리, 열린 끝 = 주황 고리와 화살표, 마개 = 빨간 마개
  */
 import type { Board } from '../core/board';
+import type { MachinePreview } from '../core/machine';
 import type { Links } from '../core/links';
 import { activeArm, switchArms } from '../core/parts';
 import { binCount, BIN_WIDTH, E, N, opposite, popcount, S, SIDE_LIST, sidesOf, type Part, type ShapeCell, type Sides, type SwitchState } from '../core/types';
@@ -458,6 +459,8 @@ export interface ArtView {
   blink: boolean;
   /** 판 위 안내: 빛나는 칸 + 말풍선 (칸 좌표) */
   overlay?: Overlay | null;
+  /** 부품 동작 미리보기 (부품 모드). focus = 회전 방향까지 보여 줄 센서 번호 */
+  machine?: (MachinePreview & { focus: number[] }) | null;
   /** 밀리초 (반짝임용) */
   time?: number;
 }
@@ -705,6 +708,7 @@ export function renderArt(ctx: CanvasRenderingContext2D, t: Theme, v: ArtView) {
     ctx.strokeRect(v.cursor.x * s + 2, OY + v.cursor.y * s + 2, s - 4, s - 4);
     ctx.setLineDash([]);
   }
+  if (v.machine) drawMachine(ctx, v.machine);
   if (v.overlay) drawOverlay(ctx, t, v.overlay, board, v.time ?? 0);
 
   // 햄스터
@@ -759,6 +763,89 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number): st
   }
   if (cur) lines.push(cur);
   return lines;
+}
+
+/**
+ * 부품 동작 미리보기: 맞물린 칸은 노란 선, 센서→모터는 하늘색 점선, 센서 번호 동그라미,
+ * 스위치 옆에 "센서 번호 → 미는 쪽". focus 센서는 도는 칸마다 ↻ / ↺.
+ */
+export function drawMachine(ctx: CanvasRenderingContext2D, m: MachinePreview & { focus: number[] }) {
+  const s = CELL;
+  const OY = TOP * s;
+  const cx = (x: number) => x * s + s / 2;
+  const cy = (y: number) => OY + y * s + s / 2;
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(255,210,90,0.75)';
+  ctx.lineWidth = 4;
+  for (const [a, b] of m.meshes) {
+    ctx.beginPath();
+    ctx.moveTo(cx(a.x), cy(a.y));
+    ctx.lineTo(cx(b.x), cy(b.y));
+    ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(120,210,255,0.95)';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([5, 4]);
+  for (const sn of m.sensors)
+    for (const mo of sn.motors) {
+      ctx.beginPath();
+      ctx.moveTo(cx(sn.x), cy(sn.y));
+      ctx.lineTo(cx(mo.x), cy(mo.y));
+      ctx.stroke();
+    }
+  ctx.setLineDash([]);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // 회전 방향 (focus 센서)
+  ctx.font = 'bold 18px system-ui, sans-serif';
+  for (const sn of m.sensors) {
+    if (!m.focus.includes(sn.n)) continue;
+    for (const tn of sn.turns) {
+      ctx.fillStyle = 'rgba(20,24,32,0.75)';
+      ctx.beginPath();
+      ctx.arc(cx(tn.x) + s * 0.28, cy(tn.y) - s * 0.28, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = tn.dir === 1 ? '#ffe14a' : '#9be7ff';
+      ctx.fillText(tn.dir === 1 ? '↻' : '↺', cx(tn.x) + s * 0.28, cy(tn.y) - s * 0.28);
+    }
+  }
+  // 센서 번호
+  ctx.font = 'bold 11px system-ui, sans-serif';
+  for (const sn of m.sensors) {
+    const x = sn.x * s + 9;
+    const y = OY + sn.y * s + 9;
+    ctx.fillStyle = m.focus.includes(sn.n) ? '#ffe14a' : '#78d2ff';
+    ctx.beginPath();
+    ctx.arc(x, y, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#10131a';
+    ctx.fillText(String(sn.n), x, y + 0.5);
+  }
+  // 스위치 옆: 센서 번호 → 미는 쪽
+  const chips = new Map<string, string[]>();
+  for (const sn of m.sensors)
+    for (const sw of sn.switches) {
+      const k = `${sw.x},${sw.y}`;
+      if (!chips.has(k)) chips.set(k, []);
+      chips.get(k)!.push(`${sn.n}→${sw.push}`);
+    }
+  ctx.font = 'bold 11px system-ui, sans-serif';
+  for (const [k, list] of chips) {
+    const [x, y] = k.split(',').map(Number) as [number, number];
+    list.forEach((txt, i) => {
+      const w = ctx.measureText(txt).width + 8;
+      const bx = x * s + s - w - 1;
+      const by = OY + y * s + s - 15 - i * 15;
+      ctx.fillStyle = 'rgba(16,19,26,0.85)';
+      ctx.beginPath();
+      ctx.roundRect(bx, by, w, 14, 4);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(txt, bx + w / 2, by + 7.5);
+    });
+  }
+  ctx.restore();
 }
 
 /** 판 위 안내: 빛나는 목표 칸과 말풍선 */
