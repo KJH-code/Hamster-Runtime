@@ -92,6 +92,28 @@ export function isUnlocked(ids: string[], index: number): boolean {
   return bestPrice(ids[index - 1]!) !== undefined || bestPrice(ids[index]!) !== undefined;
 }
 
+/** 효과음 끔 (V). 기록과 따로 저장 */
+const MUTE_KEY = 'hamster-runtime:mute';
+let muted: boolean | null = null;
+export function isMuted(): boolean {
+  if (muted === null) {
+    try {
+      muted = localStorage.getItem(MUTE_KEY) === '1';
+    } catch {
+      muted = false;
+    }
+  }
+  return muted;
+}
+export function setMuted(m: boolean): void {
+  muted = m;
+  try {
+    localStorage.setItem(MUTE_KEY, m ? '1' : '0');
+  } catch {
+    /* 이번 세션만 */
+  }
+}
+
 /** 테스트용 */
 export function _resetForTest(): void {
   memory = { best: {}, sol: {}, hint: {} };
