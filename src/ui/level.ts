@@ -54,6 +54,8 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   /** 이번에 깬 풀이의 공유 코드 */
   let clearCode: string | null = null;
   let failUntil = 0;
+  /** 빨리가기 배율 (F) — 실행할 때마다 이어진다 */
+  let speed = 1;
   let helpOpen = false;
 
   root.innerHTML = '';
@@ -151,6 +153,12 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     if (ctrl && (lower === 'y' || (lower === 'z' && e.shiftKey))) return done(() => editing() && say(play.redo() ? '다시 함' : '다시 할 것 없음'));
     if (ctrl || k === 'Shift') return;
     if (lower === 'r') return done(toggleRun);
+    if (lower === 'f')
+      return done(() => {
+        speed = speed === 1 ? 2 : speed === 2 ? 4 : 1;
+        if (runner) runner.speed = speed;
+        say(`빨리가기 ${speed}×`);
+      });
     if (k === 'Enter' && cleared && o.onNext) return done(() => o.onNext!());
     if (k === 'Enter' && cleared && o.onAllClear) return done(() => o.onAllClear!());
     if (lower === 'c' && cleared && clearCode)
@@ -253,6 +261,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     }
     play.stack.cancelActive();
     runner = new Runner(play.board, queueItems(lv), performance.now());
+    runner.speed = speed;
     tev('run');
     say('실행 중 — R 로 리셋');
   }
@@ -292,7 +301,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
             ? [['Enter', '끝 화면'], ['C', '풀이 링크 복사'], ['Esc', '목록']]
             : [['C', '풀이 링크 복사'], ['Esc', '돌아가기'], ['R', '다시 고치기']];
       if (runner.run.done) return [['R', '리셋하고 고치기'], ['Esc', '목록']];
-      return [['R', '멈추고 리셋']];
+      return [['R', '멈추고 리셋'], ['F', `빨리가기 (${speed}×)`]];
     }
     if (mode === 'mino') {
       if (play.active) return [['← →', '옮기기 (꾹)'], ['↓', '빨리 내리기'], ['X / Z', '회전'], ['Space', '고정']];
@@ -405,7 +414,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       mode === 'mino'
         ? [['1~7', '미노 꺼내기 (저절로 천천히 내려옴)'], ['Q / E', '튜브 ↔ 빈 변형'], ['← →', '옮기기 (꾹 누르면 미끄러짐)'], ['↓', '빨리 내리기'], ['X / Z', '회전'], ['Space', '바로 떨어뜨려 고정'], ['Delete', '마지막 미노 지우기']]
         : [['방향키', '칸 고르기'], ['Space', '놓기'], ['M', '모터 방향 바꾸기'], ['X / Z', '스위치 공통 갈래'], ['A / B', '스위치 시작 상태'], ['Delete', '부품 지우기'], ['Esc', '미노로']];
-    rows.push(['S G M W P', '센서 · 기어 · 모터 · 스위치 · 마개'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시'], ['R', '실행 / 리셋'], ['Esc', '레벨 목록'], ['? / H', '이 목록 열고 닫기'], ['N', '안내 다음 / 다시 보기']);
+    rows.push(['S G M W P', '센서 · 기어 · 모터 · 스위치 · 마개'], ['F', '빨리가기 1× · 2× · 4×'], ['Ctrl+Z / Ctrl+Y', '되돌리기 / 다시'], ['R', '실행 / 리셋'], ['Esc', '레벨 목록'], ['? / H', '이 목록 열고 닫기'], ['N', '안내 다음 / 다시 보기']);
     for (const [kk, what] of rows) {
       const row = el('div', 'krow');
       row.append(el('kbd', '', kk), el('span', '', what));

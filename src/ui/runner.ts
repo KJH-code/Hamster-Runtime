@@ -19,7 +19,11 @@ export class Runner {
   readonly run: QueueRun;
   running = true;
   private nextStepAt: number;
-  private anim: { from: { x: number; y: number }; t0: number };
+  private anim: { from: { x: number; y: number }; t0: number; dur: number };
+  /** 빨리가기 배율 (F): 1, 2, 4 */
+  speed = 1;
+  /** 연속 낙하 칸 수 (떨어질수록 빨라짐) */
+  private fallStreak = 0;
   private finished: { sim: Simulation; color: number; until: number } | null = null;
   private gearAngle = new Map<number, number>();
   private gearTarget = new Map<number, number>();
@@ -33,7 +37,21 @@ export class Runner {
     this.run = new QueueRun(board, queue.map((q) => ({ ...q })));
     this.nextStepAt = now;
     this.last = now;
-    this.anim = { from: { x: this.run.sim?.x ?? 0, y: this.run.sim?.y ?? -1 }, t0: now };
+    this.anim = { from: { x: this.run.sim?.x ?? 0, y: this.run.sim?.y ?? -1 }, t0: now, dur: STEP_MS };
+  }
+
+  /** 한 칸 걸리는 시간: 빨리가기 배율, 낙하 가속 */
+  private stepMs(sim: Simulation | null): number {
+    const base = STEP_MS / this.speed;
+    return sim && sim.mode === 'fall' ? base * Math.max(0.35, 1 - 0.16 * this.fallStreak) : base;
+  }
+
+  /** 지금 그려지는 위치 (애니메이션 중간 포함) */
+  private shownPos(t: number): { x: number; y: number } {
+    const shown = this.finished?.sim ?? this.run.sim;
+    if (!shown) return this.anim.from;
+    const e = Math.min(1, (t - this.anim.t0) / this.anim.dur);
+    return { x: this.anim.from.x + (shown.x - this.anim.from.x) * e, y: this.anim.from.y + (shown.y - this.anim.from.y) * e };
   }
 
   /** 프레임마다. 한 마리가 끝났으면 그 결과(순번 포함)를 돌려준다 */
@@ -43,28 +61,33 @@ export class Runner {
     let out: { n: number; status: Status; bin: number | null } | null = null;
     const r = this.run;
     if (this.running && !r.done && t >= this.nextStepAt) {
-      this.nextStepAt = t + STEP_MS;
       const before = r.sim!;
-      const from = { x: before.x, y: before.y };
+      // 이어서 움직이도록: 지금 그려진 위치에서 출발 (칸 단위로 뚝뚝 끊기지 않게)
+      const from = this.finished ? { x: before.x, y: before.y } : this.shownPos(t);
+      this.fallStreak = before.mode === 'fall' ? this.fallStreak + 1 : 0;
+      const dur = this.stepMs(before);
+      this.nextStepAt = t + dur;
       const res = r.step();
       for (const s of before.lastTriggered) this.pressedUntil.set(`${s.x},${s.y}`, t + 400);
       if (before.lastDrive)
         for (const [node, dir] of before.lastDrive.dirs) this.gearTarget.set(node, (this.gearTarget.get(node) ?? 0) + dir * (Math.PI / 4));
-      this.anim = { from, t0: t };
+      this.anim = { from, t0: t, dur };
       // 튜브에 막 들어간 순간 = 착지 (찌그러짐)
       if (r.sim === before && before.mode === 'roll' && this.lastMode === 'fall') this.landAt = t;
       this.lastMode = r.sim === before ? before.mode : 'fall';
       if (res) {
         if (res.status === 'binned' && res.bin !== null) this.binHits.set(res.bin, t);
-        this.finished = { sim: before, color: r.queue[r.results.length - 1]!.color, until: t + 700 };
-        this.nextStepAt = t + 700;
+        const pause = 700 / this.speed;
+        this.finished = { sim: before, color: r.queue[r.results.length - 1]!.color, until: t + pause };
+        this.nextStepAt = t + pause;
+        this.fallStreak = 0;
         out = { n: r.results.length, ...res };
       }
       if (r.done) this.running = false;
     }
     if (this.finished && t >= this.finished.until && !r.done) {
       this.finished = null;
-      if (r.sim) this.anim = { from: { x: r.sim.x, y: r.sim.y }, t0: t };
+      if (r.sim) this.anim = { from: { x: r.sim.x, y: r.sim.y }, t0: t, dur: this.stepMs(r.sim) };
     }
     for (const [node, target] of this.gearTarget) {
       const cur = this.gearAngle.get(node) ?? 0;
@@ -81,20 +104,27 @@ export class Runner {
     const r = this.run;
     const shown = this.finished?.sim ?? r.sim;
     if (!shown) return null;
-    const e = Math.min(1, (t - this.anim.t0) / STEP_MS);
+    const e = Math.min(1, (t - this.anim.t0) / this.anim.dur);
     const color = this.finished ? this.finished.color : r.queue[Math.min(r.index, r.queue.length - 1)]!.color;
     const visible = shown.status === 'running' || this.finished !== null || r.loop;
     if (!visible) return null;
     const stuck = shown.status === 'crashed' || shown.status === 'dead' || shown.status === 'junction' || shown.status === 'out';
     // 떨어질 때는 길쭉, 착지 직후엔 납작
     const land = (t - this.landAt) / 220;
-    const squash = shown.status === 'running' && shown.mode === 'fall' ? -0.1 : land < 1 ? 0.18 * (1 - land) : 0;
+    const falling = shown.status === 'running' && shown.mode === 'fall';
+    const squash = falling ? -0.06 - 0.03 * Math.min(4, this.fallStreak) : land < 1 ? 0.18 * (1 - land) : 0;
+    // 굴러가는 느낌: 가는 쪽으로 살짝 기울고, 구르는 동안 몸이 흔들림
+    const dx = shown.x - this.anim.from.x;
+    const moving = e < 1 && !stuck && !falling;
+    const tilt = moving ? Math.sign(dx) * 0.22 + Math.sin(t / 55) * 0.12 : 0;
+    const endY = shown.status === 'binned' ? boardH + 0.3 : shown.y;
     return {
       x: this.anim.from.x + (shown.x - this.anim.from.x) * e,
-      y: this.anim.from.y + ((shown.status === 'binned' ? boardH + 0.3 : shown.y) - this.anim.from.y) * e,
+      y: this.anim.from.y + (endY - this.anim.from.y) * e,
       color,
       shake: stuck ? Math.sin(t / 25) * 3 : 0,
       squash,
+      tilt,
       question: stuck,
     };
   }
