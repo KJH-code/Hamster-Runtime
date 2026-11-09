@@ -3,7 +3,7 @@
  */
 import type { Level } from '../core/level';
 import { E, W } from '../core/types';
-import { drawHamster, THEME, tubeCell } from './art';
+import { drawHamster, THEME, tubeCell, tubeText } from './art';
 import { copyLink, el, shareUrl, sizeCanvas, type Screen } from './runner';
 import { bestCode, bestHinted, bestPrice, isUnlocked } from './storage';
 import { HIDE_PRICE } from './tutorial';
@@ -26,11 +26,15 @@ export function startMenu(root: HTMLElement, levels: Level[], selected: number, 
   // 제목: 투명 튜브 속을 굴러가는 햄스터
   const title = document.createElement('canvas');
   title.className = 'titlecv';
-  const TW = 600;
-  const TH = 90;
+  const TW = 620;
+  const TH = 200;
   const tctx = sizeCanvas(title, TW, TH);
   const head = el('div', 'titlehead');
-  head.append(el('h1', 'bigtitle', 'Hamster Runtime'), el('div', 'dim', '튜브 미노를 떨어뜨려 쌓아 햄스터를 통으로'));
+  // 제목 글자는 캔버스가 그린다 (화면 읽기용으로만 h1 을 남긴다)
+  head.append(el('h1', 'sronly', 'Hamster Runtime'));
+  const cleared = levels.filter((l) => bestPrice(l.id) !== undefined).length;
+  const term = [`$ hamster run --levels ${levels.length}`, `▸ ${cleared} / ${levels.length} cleared · 튜브 미노를 떨어뜨려 햄스터를 통으로`, '▸ press Enter'];
+  const t0 = performance.now();
   const grid = el('div', 'lgrid');
   const sandbox = el('div', 'lcard sandbox');
   const trophy = el('div', 'lcard sandbox');
@@ -38,26 +42,49 @@ export function startMenu(root: HTMLElement, levels: Level[], selected: number, 
   const help = el('div', 'hints');
   box.append(title, head, grid, sandbox, trophy, help, status);
 
+  /** 타이틀: 투명 튜브 글자 로고 + 밑줄 튜브를 구르는 햄스터 + 타이핑되는 터미널 줄 */
   function drawTitle(t: number) {
     tctx.fillStyle = THEME.bg;
     tctx.fillRect(0, 0, TW, TH);
-    const s = 40;
-    const cy = 48;
-    const cells = Math.floor(TW / s);
-    for (let i = 0; i < cells; i++) {
-      // 나무 받침 + 튜브
-      const wood = THEME.woods[i % THEME.woods.length]!;
-      tctx.fillStyle = wood[1];
-      tctx.fillRect(i * s, cy - s / 2, s, s);
-      tctx.strokeStyle = 'rgba(255,255,255,0.8)';
-      tctx.lineWidth = 1.5;
-      tctx.strokeRect(i * s + 0.75, cy - s / 2 + 0.75, s - 1.5, s - 1.5);
-      tubeCell(tctx, THEME, i * s + s / 2, cy, s, [{ side: W }, { side: E }]);
+    tctx.fillStyle = THEME.dot;
+    for (let y = 10; y < TH; y += 24) for (let x = 10; x < TW; x += 24) {
+      tctx.beginPath();
+      tctx.arc(x, y, 1.3, 0, Math.PI * 2);
+      tctx.fill();
+    }
+    tubeText(tctx, 'Hamster Runtime', TW / 2, 58, 68, t);
+    // 밑줄 튜브 + 이음매 고리
+    const s = 30;
+    const n = Math.floor((TW - 60) / s);
+    const x0 = (TW - n * s) / 2;
+    const ry = 118;
+    for (let i = 0; i < n; i++) {
+      tubeCell(tctx, THEME, x0 + i * s + s / 2, ry, s, [{ side: W }, { side: E }]);
+      if (i % 3 === 0 && i) {
+        tctx.strokeStyle = THEME.coupler;
+        tctx.lineWidth = 3;
+        tctx.beginPath();
+        tctx.moveTo(x0 + i * s, ry - s * 0.32);
+        tctx.lineTo(x0 + i * s, ry + s * 0.32);
+        tctx.stroke();
+      }
     }
     const period = 7000;
-    const x = ((t % period) / period) * (TW + 80) - 40;
-    const hop = Math.abs(Math.sin(t / 160)) * 3;
-    drawHamster(tctx, THEME, x, cy - hop, s * 1.2, Math.floor(t / period) % 2, Math.sin(t / 160) * 0.04);
+    const hx = x0 + ((t % period) / period) * n * s;
+    const hop = Math.abs(Math.sin(t / 140)) * 2;
+    drawHamster(tctx, THEME, hx, ry - hop, s * 1.2, Math.floor(t / period) % 2, Math.sin(t / 140) * 0.05);
+    // 터미널 줄: 처음 열 때 한 번 타이핑, 마지막 줄 커서 깜빡
+    tctx.font = `500 13px 'JetBrains Mono', ui-monospace, monospace`;
+    tctx.textAlign = 'left';
+    tctx.textBaseline = 'alphabetic';
+    let left = Math.floor((t - t0) / 28);
+    term.forEach((ln, i) => {
+      const k = Math.max(0, Math.min(ln.length, left));
+      left -= ln.length;
+      const cursor = i === term.length - 1 && k === ln.length && Math.floor(t / 500) % 2 ? '_' : '';
+      tctx.fillStyle = i === 0 ? '#ffe14a' : '#9be7c4';
+      tctx.fillText(ln.slice(0, k) + cursor, 30, 152 + i * 18);
+    });
   }
 
   function refresh() {

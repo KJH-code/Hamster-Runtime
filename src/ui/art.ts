@@ -366,7 +366,8 @@ export function drawPart(ctx: CanvasRenderingContext2D, t: Theme, part: Part, px
 }
 
 /** 목도리 두른 햄스터 */
-export function drawHamster(ctx: CanvasRenderingContext2D, t: Theme, hx: number, hy: number, s: number, color: number, squash = 0, tilt = 0) {
+/** mood: roll(보통) · fall(놀람: 동그란 눈, 오 입) · happy(^^ 눈, 웃는 입) · dizzy(× 눈, 물결 입) */
+export function drawHamster(ctx: CanvasRenderingContext2D, t: Theme, hx: number, hy: number, s: number, color: number, squash = 0, tilt = 0, mood: 'roll' | 'fall' | 'happy' | 'dizzy' = 'roll') {
   const r = s * 0.36;
   ctx.save();
   ctx.translate(hx, hy);
@@ -414,23 +415,60 @@ export function drawHamster(ctx: CanvasRenderingContext2D, t: Theme, hx: number,
   ctx.roundRect(r * 0.35, r * 0.1, r * 0.28, r * 0.55, r * 0.1);
   ctx.fill();
   ctx.stroke();
-  // 눈·코
+  // 눈·코·입 (표정)
   ctx.fillStyle = '#1b1208';
+  ctx.strokeStyle = '#1b1208';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = Math.max(1.2, r * 0.07);
   for (const dx of [-1, 1]) {
+    const ex = dx * r * 0.36;
+    const ey = -r * 0.35;
     ctx.beginPath();
-    ctx.arc(dx * r * 0.36, -r * 0.35, r * 0.11, 0, Math.PI * 2);
-    ctx.fill();
+    if (mood === 'happy') {
+      ctx.arc(ex, ey + r * 0.05, r * 0.11, Math.PI * 1.1, Math.PI * 1.9);
+      ctx.stroke();
+    } else if (mood === 'dizzy') {
+      const k = r * 0.09;
+      ctx.moveTo(ex - k, ey - k);
+      ctx.lineTo(ex + k, ey + k);
+      ctx.moveTo(ex + k, ey - k);
+      ctx.lineTo(ex - k, ey + k);
+      ctx.stroke();
+    } else {
+      ctx.arc(ex, ey, r * (mood === 'fall' ? 0.15 : 0.11), 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
-  ctx.fillStyle = '#fff';
-  for (const dx of [-1, 1]) {
-    ctx.beginPath();
-    ctx.arc(dx * r * 0.36 + r * 0.04, -r * 0.39, r * 0.04, 0, Math.PI * 2);
-    ctx.fill();
+  if (mood === 'roll' || mood === 'fall') {
+    ctx.fillStyle = '#fff';
+    for (const dx of [-1, 1]) {
+      ctx.beginPath();
+      ctx.arc(dx * r * 0.36 + r * 0.04, -r * 0.39, r * (mood === 'fall' ? 0.06 : 0.04), 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   ctx.fillStyle = '#f08aa0';
   ctx.beginPath();
   ctx.arc(0, -r * 0.2, r * 0.07, 0, Math.PI * 2);
   ctx.fill();
+  if (mood !== 'roll') {
+    ctx.strokeStyle = '#7a3b2a';
+    ctx.fillStyle = '#7a3b2a';
+    ctx.lineWidth = Math.max(1, r * 0.06);
+    ctx.beginPath();
+    if (mood === 'fall') {
+      ctx.ellipse(0, -r * 0.13, r * 0.05, r * 0.06, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (mood === 'happy') {
+      ctx.arc(0, -r * 0.22, r * 0.11, 0.2 * Math.PI, 0.8 * Math.PI);
+      ctx.stroke();
+    } else {
+      ctx.moveTo(-r * 0.14, -r * 0.12);
+      ctx.quadraticCurveTo(-r * 0.07, -r * 0.18, 0, -r * 0.12);
+      ctx.quadraticCurveTo(r * 0.07, -r * 0.06, r * 0.14, -r * 0.12);
+      ctx.stroke();
+    }
+  }
   ctx.restore();
 }
 
@@ -447,7 +485,7 @@ export interface ArtView {
   floating: { cells: ShapeCell[]; x: number; y: number; ok: boolean } | null;
   ghost: { cells: ShapeCell[]; x: number; y: number } | null;
   cursor: { x: number; y: number } | null;
-  hamster: { x: number; y: number; color: number; shake: number; squash?: number; tilt?: number; question?: boolean } | null;
+  hamster: { x: number; y: number; color: number; shake: number; squash?: number; tilt?: number; question?: boolean; mood?: 'roll' | 'fall' | 'happy' | 'dizzy' } | null;
   nextInject: 'left' | 'right' | null;
   bins: number[][];
   goals: number[][] | null;
@@ -715,7 +753,7 @@ export function renderArt(ctx: CanvasRenderingContext2D, t: Theme, v: ArtView) {
   if (v.hamster) {
     const hx = (v.hamster.x + 0.5) * s + v.hamster.shake;
     const hy = OY + (v.hamster.y + 0.5) * s;
-    drawHamster(ctx, t, hx, hy, s, v.hamster.color, v.hamster.squash ?? 0, v.hamster.tilt ?? 0);
+    drawHamster(ctx, t, hx, hy, s, v.hamster.color, v.hamster.squash ?? 0, v.hamster.tilt ?? 0, v.hamster.mood ?? 'roll');
     if (v.hamster.question) {
       // 갸웃: 물음표 말풍선
       ctx.fillStyle = '#fff7e2';
@@ -845,6 +883,40 @@ export function drawMachine(ctx: CanvasRenderingContext2D, m: MachinePreview & {
       ctx.fillText(txt, bx + w / 2, by + 7.5);
     });
   }
+  ctx.restore();
+}
+
+/** 글자를 투명 튜브처럼 (타이틀 로고): 유리 벽 + 어두운 속 + 안을 흐르는 노란 빛 + 하이라이트 */
+export function tubeText(ctx: CanvasRenderingContext2D, txt: string, x: number, y: number, size: number, time: number) {
+  ctx.save();
+  ctx.font = `${size}px 'Jua', system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+  ctx.lineWidth = size * 0.26;
+  ctx.strokeText(txt, x + 3, y + 5);
+  ctx.strokeStyle = 'rgba(220,240,255,0.55)';
+  ctx.lineWidth = size * 0.24;
+  ctx.strokeText(txt, x, y);
+  ctx.strokeStyle = '#1a2230';
+  ctx.lineWidth = size * 0.16;
+  ctx.strokeText(txt, x, y);
+  ctx.strokeStyle = 'rgba(160,210,240,0.30)';
+  ctx.strokeText(txt, x, y);
+  const w = ctx.measureText(txt).width;
+  const g = ctx.createLinearGradient(x - w / 2, 0, x + w / 2, 0);
+  const p = (time / 2600) % 1;
+  g.addColorStop(Math.max(0, p - 0.08), 'rgba(255,225,74,0)');
+  g.addColorStop(p, 'rgba(255,225,74,0.9)');
+  g.addColorStop(Math.min(1, p + 0.08), 'rgba(255,225,74,0)');
+  ctx.strokeStyle = g;
+  ctx.lineWidth = size * 0.07;
+  ctx.strokeText(txt, x, y);
+  ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+  ctx.lineWidth = 1.6;
+  ctx.strokeText(txt, x - 1.5, y - 2.5);
   ctx.restore();
 }
 

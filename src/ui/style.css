@@ -161,3 +161,20 @@ canvas.board { border: 1px solid #2c3140; border-radius: 14px; }
 .demosteps { margin: 8px 0 0; padding-left: 22px; display: grid; gap: 6px; color: #8d95a8; }
 .demosteps li.on { color: #ffe14a; font-weight: 700; }
 .demosteps li.done { color: #c9d1e3; }
+/* 판 위 클리어 카드 */
+.boardwrap { position: relative; }
+.clearcard { position: absolute; left: 50%; top: 34%; transform: translate(-50%, -50%); min-width: 250px; max-width: 92%; padding: 14px 18px 12px; border-radius: 18px;
+  background: #fff7e2; color: #2a2116; border: 3px solid #e0b84a; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; animation: ccpop 0.32s cubic-bezier(.2,1.6,.4,1) both; }
+.clearcard .cc-title { font-family: 'Jua', system-ui, sans-serif; font-size: 34px; color: #b8860b; line-height: 1.1; }
+.clearcard .cc-stars { display: flex; justify-content: center; gap: 10px; margin: 8px 0 4px; }
+.clearcard .cc-star { display: flex; flex-direction: column; align-items: center; width: 74px; opacity: 0.45; animation: ccstar 0.35s ease-out both; }
+.clearcard .cc-star.on { opacity: 1; }
+.clearcard .cc-s { font-size: 30px; line-height: 1; color: #c9b88d; }
+.clearcard .cc-star.on .cc-s { color: #f2b705; text-shadow: 0 2px 0 #9a6a00; }
+.clearcard .cc-w { font-size: 11px; color: #6b5a3c; margin-top: 2px; }
+.clearcard .cc-price { font-family: 'Jua', system-ui, sans-serif; font-size: 17px; margin: 4px 0 8px; }
+.clearcard .hints { justify-content: center; background: transparent; border: 0; padding: 0; }
+.clearcard .hints .hint { color: #2a2116; }
+@keyframes ccpop { from { transform: translate(-50%, -50%) scale(0.6); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+@keyframes ccstar { from { transform: scale(0.2) rotate(-30deg); } to { transform: scale(1) rotate(0); } }
+.sronly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
