@@ -161,3 +161,19 @@ export function renderHints(box: HTMLElement, pairs: [string, string][]) {
     box.append(chip);
   }
 }
+
+/** 풀이 공유 링크 */
+export function shareUrl(code: string): string {
+  return `${location.origin}${location.pathname}#s=${code}`;
+}
+
+/** 클립보드에 복사. 막혀 있으면 링크가 선택된 입력 창을 띄워 Ctrl+C 로 복사하게 한다 */
+export async function copyLink(url: string): Promise<'copied' | 'prompt'> {
+  try {
+    await navigator.clipboard.writeText(url);
+    return 'copied';
+  } catch {
+    window.prompt('이 링크를 복사하세요 (Ctrl+C)', url);
+    return 'prompt';
+  }
+}

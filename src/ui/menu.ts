@@ -4,14 +4,16 @@
 import type { Level } from '../core/level';
 import { E, W } from '../core/types';
 import { drawHamster, THEME, tubeCell } from './art';
-import { el, sizeCanvas, type Screen } from './runner';
-import { bestPrice, isUnlocked } from './storage';
+import { copyLink, el, shareUrl, sizeCanvas, type Screen } from './runner';
+import { bestCode, bestPrice, isUnlocked } from './storage';
 
 const COLS = 5;
 
-export function startMenu(root: HTMLElement, levels: Level[], selected: number, onOpen: (i: number) => void, onSandbox: () => void): Screen {
+export function startMenu(root: HTMLElement, levels: Level[], selected: number, onOpen: (i: number) => void, onSandbox: () => void, onAllClear?: () => void): Screen {
   const ids = levels.map((l) => l.id);
-  const n = levels.length + 1; // 마지막 = 샌드박스
+  const allDone = levels.every((l) => bestPrice(l.id) !== undefined);
+  // 레벨 카드들 다음 = 샌드박스, (다 깼으면) 그다음 = 완주 기록
+  const n = levels.length + 1 + (allDone && onAllClear ? 1 : 0);
   let sel = Math.max(0, Math.min(selected, n - 1));
   let message = '';
   let alive = true;
@@ -30,9 +32,10 @@ export function startMenu(root: HTMLElement, levels: Level[], selected: number, 
   head.append(el('h1', 'bigtitle', 'Hamster Runtime'), el('div', 'dim', '튜브 미노를 떨어뜨려 쌓아 햄스터를 통으로'));
   const grid = el('div', 'lgrid');
   const sandbox = el('div', 'lcard sandbox');
+  const trophy = el('div', 'lcard sandbox');
   const status = el('div', 'status');
   const help = el('div', 'hints');
-  box.append(title, head, grid, sandbox, help, status);
+  box.append(title, head, grid, sandbox, trophy, help, status);
 
   function drawTitle(t: number) {
     tctx.fillStyle = THEME.bg;
@@ -69,8 +72,13 @@ export function startMenu(root: HTMLElement, levels: Level[], selected: number, 
     sandbox.className = 'lcard sandbox' + (sel === levels.length ? ' pick' : '');
     sandbox.innerHTML = '';
     sandbox.append(el('div', 'lname', '샌드박스 · 레벨 에디터'), el('div', 'lbest', '자유 배치, 직접 레벨 만들기'));
+    trophy.hidden = n === levels.length + 1;
+    trophy.className = 'lcard sandbox trophy' + (sel === levels.length + 1 ? ' pick' : '');
+    trophy.innerHTML = '';
+    trophy.append(el('div', 'lname', '🏆 완주 기록'), el('div', 'lbest', '레벨별 최저 가격 모아 보기'));
     help.innerHTML = '';
-    for (const [k, w] of [['← → ↑ ↓', '고르기'], ['Enter', '열기']] as const) {
+    const canShare = sel < levels.length && bestCode(levels[sel]!.id) !== undefined;
+    for (const [k, w] of [['← → ↑ ↓', '고르기'], ['Enter', '열기'], ...(canShare ? ([['C', '내 최저 풀이 링크 복사']] as const) : [])] as const) {
       const chip = el('span', 'hint');
       chip.append(el('kbd', '', k), el('span', '', w));
       help.append(chip);
@@ -90,11 +98,21 @@ export function startMenu(root: HTMLElement, levels: Level[], selected: number, 
     const L = levels.length;
     if (e.key === 'ArrowLeft') return done(() => (sel = (sel - 1 + n) % n));
     if (e.key === 'ArrowRight') return done(() => (sel = (sel + 1) % n));
-    if (e.key === 'ArrowUp') return done(() => (sel = sel === L ? Math.min(L - 1, (Math.ceil(L / COLS) - 1) * COLS) : Math.max(0, sel - COLS)));
-    if (e.key === 'ArrowDown') return done(() => (sel = sel + COLS < L ? sel + COLS : L));
+    if (e.key === 'ArrowUp') return done(() => (sel = sel > L ? sel - 1 : sel === L ? Math.min(L - 1, (Math.ceil(L / COLS) - 1) * COLS) : Math.max(0, sel - COLS)));
+    if (e.key === 'ArrowDown') return done(() => (sel = sel < L ? (sel + COLS < L ? sel + COLS : L) : Math.min(n - 1, sel + 1)));
+    if (e.key === 'c' || e.key === 'C')
+      return done(() => {
+        const code = sel < L ? bestCode(levels[sel]!.id) : undefined;
+        if (!code) return void (message = '이 레벨은 공유할 풀이가 없다 (깨면 생긴다)');
+        void copyLink(shareUrl(code)).then((how) => {
+          message = how === 'copied' ? `${sel + 1}번 최저 풀이 링크를 복사했다` : '링크 창에서 Ctrl+C 로 복사';
+          refresh();
+        });
+      });
     if (e.key === 'Enter' || e.key === ' ')
       return done(() => {
         if (sel === L) return onSandbox();
+        if (sel === L + 1) return onAllClear?.();
         if (!isUnlocked(ids, sel)) return void (message = '잠긴 레벨 — 앞 레벨을 먼저 클리어');
         onOpen(sel);
       });
