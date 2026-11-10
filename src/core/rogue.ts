@@ -3,7 +3,9 @@
  * - 덱: 가진 미노 종류·부품 종류만 쓸 수 있다 (개수 제한 없음). 시작 = I·L·J 튜브 + O 빈
  * - 층: 덱으로 풀리게 자동 생성 (core/daily.ts 의 생성기). 층이 오를수록 판·미노·햄스터가 늘고 6층부터 양쪽 투입구.
  *   스위치·센서·모터·기어를 다 가지면 3층마다 기계 층 (길·받침은 고정, 부품만 놓는다)
- * - 돈: 층 예산 = 참조 가격 × 1.5 (올림) + 지갑. 깨면 남은 돈이 지갑으로 (유물: 용돈·이자)
+ * - 돈: 층 예산 = 참조 가격 × 배율 (올림) + 지갑. 배율은 1층 1.5 → 11층 1.1 → 이후 층마다 -0.02, 최저 0.85
+ *   (뒤로 갈수록 모아 둔 돈을 써야 한다 — 모의 런: 보통 15층, 고수 40~50층에서 끝). 깨면 남은 돈이 지갑으로 (유물: 용돈·이자)
+ * - 기계 층의 절반은 색 나누기 (통마다 한 색만)
  * - 목숨 3: 층 포기 = 목숨 -1, 다음 층으로. 0 이면 끝
  * - 보상: 층을 깨면 3개(미노 / 부품 / 유물) 중 하나
  * 같은 씨앗 + 같은 선택이면 같은 런 (친구와 씨앗 공유, 주간 런).
@@ -56,6 +58,12 @@ export function weeklySeed(date: string): string {
 
 const relic = (id: string) => RELICS.find((r) => r.id === id);
 
+/** 층 예산 배율 */
+export function budgetMul(floor: number): number {
+  const m = floor <= 11 ? 1.5 - 0.04 * (floor - 1) : Math.max(0.85, 1.1 - 0.02 * (floor - 11));
+  return Math.round(m * 100) / 100;
+}
+
 /** 유물로 바뀐 가격표 */
 export function runPrices(st: RunState, base: PriceTable): PriceTable {
   const p: PriceTable = { minos: { ...base.minos }, parts: { ...base.parts } };
@@ -81,12 +89,13 @@ export function floorLevel(st: RunState, base: PriceTable): { level: Level; floo
   const step = (k: number, cap: number) => Math.min(cap, Math.floor(f / k));
   // 6층부터 절반은 양쪽 투입구 (층마다 한 번 정한다)
   const two = f >= 6 && rand() < 0.5;
+  const sortColors = machine && rand() < 0.5;
   let lv: Level | null = null;
   for (let k = 0; k < 6000 && !lv; k++) {
     // 오래 못 찾으면 한 단계씩 쉽게
     const ease = Math.floor(k / 1500);
     if (machine)
-      lv = machineOnce(rand, id, prices, { name: `${f}층 · 기계`, name2: `${f}층 · 두 단 기계`, fixAll: true, twoProb: f >= 9 ? 0.5 : 0.2, q: [4 + step(6, 2), 3], allowed, budgetMul: 1.5 });
+      lv = machineOnce(rand, id, prices, { name: sortColors ? `${f}층 · 색 나누기` : `${f}층 · 기계`, name2: sortColors ? `${f}층 · 두 단 색 나누기` : `${f}층 · 두 단 기계`, fixAll: true, twoProb: f >= 9 ? 0.5 : 0.2, q: [4 + step(6, 2), 3], allowed, budgetMul: budgetMul(f), colorSort: sortColors });
     else
       lv = stackOnce(rand, id, prices, {
         name: `${f}층`,
@@ -100,7 +109,7 @@ export function floorLevel(st: RunState, base: PriceTable): { level: Level; floo
         q: [2 + step(4, 3), 2],
         inlets: two && ease < 2 ? 2 : 1,
         allowed,
-        budgetMul: 1.5,
+        budgetMul: budgetMul(f),
         smart: true,
       });
   }

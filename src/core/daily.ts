@@ -291,6 +291,8 @@ export interface MachineOpts {
   q: [number, number];
   allowed: Level['allowed'];
   budgetMul: number;
+  /** 색 나누기: 통마다 한 색만 담기게 대기열 색을 고른다 (11번처럼) */
+  colorSort?: boolean;
 }
 const HARD: MachineOpts = {
   name: '오늘의 기계',
@@ -307,11 +309,23 @@ export function machineOnce(rand: () => number, id: string, prices: PriceTable, 
   const parts = machineParts(rand, two);
   const qn = o.q[0] + Math.floor(rand() * o.q[1]);
   const queue = Array.from({ length: qn }, () => ({ color: rand() < 0.5 ? ('red' as const) : ('blue' as const), inject: 'left' as const }));
-  const qItems = queue.map((q) => ({ color: (q.color === 'red' ? 0 : 1) as 0 | 1, inject: q.inject }));
+  let qItems = queue.map((q) => ({ color: (q.color === 'red' ? 0 : 1) as 0 | 1, inject: q.inject }));
   const m = buildMachine(two, parts, true, o.fixAll);
   if (!m) return null;
-  const run = new QueueRun(m.board, qItems);
+  let run = new QueueRun(m.board, qItems);
   run.runAll();
+  if (o.colorSort) {
+    // 햄스터마다 들어간 통을 보고, 통마다 색 하나를 정해 대기열 색을 다시 칠한다 (두 색 다 쓰이게)
+    if (run.loop || run.results.some((r) => r.status !== 'binned')) return null;
+    const used = [...new Set(run.results.map((r) => r.bin!))];
+    if (used.length < 2) return null;
+    const colorOf = new Map(used.map((b) => [b, rand() < 0.5 ? ('red' as const) : ('blue' as const)]));
+    if (new Set(colorOf.values()).size < 2) colorOf.set(used[0]!, colorOf.get(used[1]!) === 'red' ? 'blue' : 'red');
+    run.results.forEach((r, i) => (queue[i]!.color = colorOf.get(r.bin!)!));
+    qItems = queue.map((q) => ({ color: (q.color === 'red' ? 0 : 1) as 0 | 1, inject: q.inject }));
+    run = new QueueRun(m.board, qItems);
+    run.runAll();
+  }
   if (run.loop || run.results.some((r) => r.status !== 'binned')) return null;
   const bins = binsOf(run, m.board.w);
   if (bins.filter((b) => b.red + b.blue > 0).length < 2) return null;
@@ -329,7 +343,7 @@ export function machineOnce(rand: () => number, id: string, prices: PriceTable, 
   const r = levelFromBoard(
     m.board,
     queue,
-    { id, name: two ? o.name2 : o.name, mechanic: '대기열 순서를 읽고 센서·모터·기어로 스위치를 넘겨 통마다 나눠 담는다.', bins, allowed: o.allowed },
+    { id, name: two ? o.name2 : o.name, mechanic: o.colorSort ? '색 나누기: 통마다 한 색만. 대기열 순서를 읽고 차례에 맞춰 스위치를 넘긴다.' : '대기열 순서를 읽고 센서·모터·기어로 스위치를 넘겨 통마다 나눠 담는다.', bins, allowed: o.allowed },
     (uid) => m.fixed.has(uid),
     () => false,
     prices,

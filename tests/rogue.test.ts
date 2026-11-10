@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clearFloor, drawRewards, floorLevel, newRun, parseRun, pickReward, runPrices, skipFloor, START_MINOS, weeklySeed, type RunState } from '../src/core/rogue';
+import { budgetMul, clearFloor, drawRewards, floorLevel, newRun, parseRun, pickReward, runPrices, skipFloor, START_MINOS, weeklySeed, type RunState } from '../src/core/rogue';
 import { verifyLayout } from '../src/core/level';
 import { PRICES } from '../src/data/prices';
 
@@ -73,4 +73,20 @@ describe('로그라이크', () => {
     expect(parseRun({ v: 2 })).toBeNull();
     expect(parseRun(null)).toBeNull();
   });
+  it('층 예산 배율: 1층 1.5 → 6층 1.3 → 11층 1.1 → 12층 1.08 → 23층 0.86 → 최저 0.85', () => {
+    expect([1, 6, 11, 12, 23, 24, 40].map(budgetMul)).toEqual([1.5, 1.3, 1.1, 1.08, 0.86, 0.85, 0.85]);
+  });
+  it('기계 색 나누기 층: 통마다 한 색만, 두 색 다 쓰인다', () => {
+    let found = 0;
+    for (let f = 3; f <= 30 && found < 2; f += 3) {
+      const st: RunState = { ...newRun('seed-color'), floor: f, parts: ['switch', 'sensor', 'motor', 'gear'] };
+      const m = floorLevel(st, PRICES);
+      if (!m.level.name.includes('색 나누기')) continue;
+      found++;
+      for (const b of m.level.bins) expect(b.red === 0 || b.blue === 0).toBe(true);
+      expect(m.level.bins.some((b) => b.red > 0) && m.level.bins.some((b) => b.blue > 0)).toBe(true);
+      expect(verifyLayout(m.level, m.level.solution!, PRICES).judgement?.clear).toBe(true);
+    }
+    expect(found).toBeGreaterThan(0);
+  }, 60000);
 });
