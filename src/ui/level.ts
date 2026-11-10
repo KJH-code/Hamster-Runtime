@@ -17,7 +17,7 @@ import { sfx } from './sound';
 import { nextHint, partFits, type Hint } from '../core/hint';
 import { machinePreview } from '../core/machine';
 import { HINT_TEXT } from '../data/hints';
-import { PRICES } from '../data/prices';
+import { PRICES, type PriceTable } from '../data/prices';
 import { HIDE_PRICE, LEVEL_TUTORIALS, Tutorial } from './tutorial';
 import { KeyRepeat } from './keyrepeat';
 import { renderPalette } from './palette';
@@ -28,6 +28,18 @@ export interface LevelScreenOpts {
   number?: number;
   /** 제목 (번호 대신, 예: 데일리) */
   title?: string;
+  /** 가격표 (로그라이크 유물로 바뀐 것). 없으면 기본 */
+  prices?: PriceTable;
+  /** 만든 사람 풀이 가격 (별 판정). 없으면 예산의 절반 */
+  refPrice?: number;
+  /** Enter 로 넘어갈 곳 이름 (기본 '다음 레벨') */
+  nextLabel?: string;
+  /** 클리어한 순간 (가격) — 로그라이크 지갑 */
+  onCleared?: (price: number) => void;
+  /** K 두 번 = 포기 (로그라이크: 목숨 -1) */
+  onSkip?: () => void;
+  /** 풀이 링크(C) 를 쓸 수 있는가 (로그라이크 층은 받는 쪽이 다시 만들 수 없어 끔) */
+  share?: boolean;
   /** 기록을 남기는가 (에디터 시험 플레이는 false) */
   record: boolean;
   onExit: () => void;
@@ -38,7 +50,10 @@ export interface LevelScreenOpts {
 
 export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   const lv = o.level;
-  const play = new LevelPlay(lv);
+  const prices = o.prices ?? PRICES;
+  const canShare = o.share !== false;
+  const play = new LevelPlay(lv, MINOS, prices);
+  let skipArmed = false;
   let mode: 'mino' | 'part' = 'mino';
   const letters = PIECE_ORDER.filter((p) => lv.allowed.minos.some((id) => MINOS.find((d) => d.id === id)?.piece === p));
   let letterIdx = 0;
@@ -185,6 +200,13 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     if (ctrl || k === 'Shift') return;
     if (lower === 'r') return done(toggleRun);
     if (lower === 't') return done(showHint);
+    if (lower === 'k' && o.onSkip && !cleared)
+      return done(() => {
+        if (skipArmed) return o.onSkip!();
+        skipArmed = true;
+        say('K 한 번 더 = 이 층 포기 (목숨 -1, 다음 층으로)');
+      });
+    if (lower !== 'k') skipArmed = false;
     if (lower === 'v')
       return done(() => {
         setMuted(!isMuted());
@@ -199,7 +221,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       });
     if (k === 'Enter' && cleared && o.onNext) return done(() => o.onNext!());
     if (k === 'Enter' && cleared && o.onAllClear) return done(() => o.onAllClear!());
-    if (lower === 'c' && cleared && clearCode)
+    if (lower === 'c' && cleared && clearCode && canShare)
       return done(() => {
         const url = shareUrl(clearCode!);
         void copyLink(url).then((how) => {
@@ -323,7 +345,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     // 탐색은 1초 남짓 걸릴 수 있어서 화면을 먼저 그린 뒤에
     setTimeout(() => {
       if (!alive) return;
-      const h = nextHint(lv, play.layout(), PRICES, { budgetMs: 1200, now: () => performance.now() });
+      const h = nextHint(lv, play.layout(), prices, { budgetMs: 1200, now: () => performance.now() });
       hintView = { hint: h };
       if (h.kind === 'mino' || h.kind === 'part') hintCount++;
       say(h.kind === 'mino' ? '힌트: 빛나는 자리' : h.kind === 'part' ? '힌트: 빛나는 칸' : h.kind === 'done' ? '힌트: 다 맞다' : `힌트: ${h.reason}`);
@@ -417,7 +439,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     clearCard = cardEl;
     cardEl.append(el('div', 'cc-title', '클리어!'));
     if (!hidePrice) {
-      const ref = Math.ceil(lv.budget / 2);
+      const ref = o.refPrice ?? Math.ceil(lv.budget / 2);
       const stars: [boolean, string][] = [
         [true, '클리어'],
         [price <= ref, `만든 사람 풀이(${ref}) 이하`],
@@ -437,7 +459,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     const bt = o.record ? bestTime(lv.id) : undefined;
     cardEl.append(el('div', 'cc-time', `⏱ ${formatTime(timeMs)}${newTime ? ' · 새 최단 기록!' : bt !== undefined ? ` · 최단 ${formatTime(bt)}` : ''}`));
     const keys = el('div', 'hints');
-    const pairs: [string, string][] = [...(o.onNext ? ([['Enter', '다음 레벨']] as [string, string][]) : o.onAllClear ? ([['Enter', '끝 화면']] as [string, string][]) : []), ['C', '풀이 링크'], ['R', '다시 고치기']];
+    const pairs: [string, string][] = [...(o.onNext ? ([['Enter', o.nextLabel ?? '다음 레벨']] as [string, string][]) : o.onAllClear ? ([['Enter', '끝 화면']] as [string, string][]) : []), ...(canShare ? ([['C', '풀이 링크']] as [string, string][]) : []), ['R', '다시 고치기']];
     renderHints(keys, pairs);
     cardEl.append(keys);
     boardWrap.append(cardEl);
@@ -471,6 +493,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       celebrate = { ps: burst(cw / 2, ch * 0.32, now), t0: now };
       tev('clear');
       sfx('clear');
+      o.onCleared?.(j.price);
       tut = null; // 깼으면 안내는 닫는다 (N 으로 다시 볼 수 있다)
       let best = '';
       const hinted = hintCount > 0;
@@ -482,7 +505,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
         best = isNew ? ' · 새 최저 기록!' : ` · 최저 ${bestPrice(lv.id)}`;
         showCard(j.price, isNew, timeMs, newTime);
       } else showCard(j.price, false, timeMs, false);
-      say(`★ 클리어!${hidePrice ? '' : ` 가격 ${j.price}${best}`}${hintCount ? ` · 💡 힌트 ${hintCount}번` : ''}${o.onNext ? ' — Enter 다음 레벨' : o.onAllClear ? ' — Enter 끝 화면' : ''} · C 풀이 링크 복사`);
+      say(`★ 클리어!${hidePrice ? '' : ` 가격 ${j.price}${best}`}${hintCount ? ` · 💡 힌트 ${hintCount}번` : ''}${o.onNext ? ` — Enter ${o.nextLabel ?? '다음 레벨'}` : o.onAllClear ? ' — Enter 끝 화면' : ''}${canShare ? ' · C 풀이 링크 복사' : ''}`);
     } else {
       const why: string[] = [];
       if (j.loop) why.push('무한 루프');
@@ -500,7 +523,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     if (runner) {
       if (cleared)
         return o.onNext
-          ? [['Enter', '다음 레벨'], ['C', '풀이 링크 복사'], ['Esc', '목록'], ['R', '다시 고치기']]
+          ? [['Enter', o.nextLabel ?? '다음 레벨'], ...(canShare ? ([['C', '풀이 링크 복사']] as [string, string][]) : []), ['Esc', '목록'], ['R', '다시 고치기']]
           : o.onAllClear
             ? [['Enter', '끝 화면'], ['C', '풀이 링크 복사'], ['Esc', '목록']]
             : [['C', '풀이 링크 복사'], ['Esc', '돌아가기'], ['R', '다시 고치기']];
@@ -510,7 +533,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
     if (mode === 'mino') {
       if (play.active) return [['← →', '옮기기 (꾹)'], ['↓', '빨리 내리기'], ['X / Z', '회전'], ['Space', '고정']];
       const pk = lv.allowed.parts.map((t) => KEY_OF[t]).join(' ');
-      return [[letters.length > 1 ? `1~${letters.length}` : '1', '미노'], ...(pk ? ([[pk, '부품']] as [string, string][]) : []), ['R', '실행'], ['T', '힌트'], ['?', '전체 키']];
+      return [[letters.length > 1 ? `1~${letters.length}` : '1', '미노'], ...(pk ? ([[pk, '부품']] as [string, string][]) : []), ['R', '실행'], ['T', '힌트'], ...(o.onSkip ? ([['K K', '포기']] as [string, string][]) : []), ['?', '전체 키']];
     }
     const here = play.board.partAt(cursor.x, cursor.y);
     if (here?.type === 'switch' && !play.isFixedCell(cursor.x, cursor.y)) return [['A / B', '시작 방향'], ['X / Z', '공통(흰 점) 돌리기'], ['Delete', '지우기']];

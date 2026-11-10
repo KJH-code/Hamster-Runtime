@@ -129,6 +129,52 @@ export function isUnlocked(ids: string[], index: number): boolean {
   return bestPrice(ids[index - 1]!) !== undefined || bestPrice(ids[index]!) !== undefined;
 }
 
+/** 로그라이크: 진행 중인 런 (중간 저장) 과 최고 층. 기록과 따로 저장 */
+const ROGUE_KEY = 'hamster-runtime:rogue:v1';
+interface RogueStore {
+  run: unknown;
+  best: number;
+  bestWeek: Record<string, number>;
+}
+function rogueLoad(): RogueStore {
+  try {
+    const r = JSON.parse(localStorage.getItem(ROGUE_KEY) ?? 'null') as Partial<RogueStore> | null;
+    return { run: r?.run ?? null, best: typeof r?.best === 'number' ? r.best : 0, bestWeek: r?.bestWeek && typeof r.bestWeek === 'object' ? r.bestWeek : {} };
+  } catch {
+    return { run: null, best: 0, bestWeek: {} };
+  }
+}
+let rogueMem: RogueStore | null = null;
+const rogue = () => (rogueMem ??= rogueLoad());
+function rogueSave(): void {
+  try {
+    localStorage.setItem(ROGUE_KEY, JSON.stringify(rogue()));
+  } catch {
+    /* 이번 세션만 */
+  }
+}
+/** 저장된 런 (형식 확인은 core/rogue.ts 의 parseRun) */
+export function savedRun(): unknown {
+  return rogue().run;
+}
+export function saveRun(run: unknown): void {
+  rogue().run = run;
+  rogueSave();
+}
+/** 최고 층 (깬 층 수). 주간 씨앗이면 그 주 기록도. 새 기록이면 true */
+export function recordFloor(cleared: number, week?: string): boolean {
+  const r = rogue();
+  let isNew = false;
+  if (cleared > r.best) ((r.best = cleared), (isNew = true));
+  if (week && cleared > (r.bestWeek[week] ?? 0)) r.bestWeek[week] = cleared;
+  rogueSave();
+  return isNew;
+}
+export function bestFloor(week?: string): number {
+  const r = rogue();
+  return week ? (r.bestWeek[week] ?? 0) : r.best;
+}
+
 /** 효과음 끔 (V). 기록과 따로 저장 */
 const MUTE_KEY = 'hamster-runtime:mute';
 let muted: boolean | null = null;

@@ -187,3 +187,8 @@ canvas.board { border: 1px solid #2c3140; border-radius: 14px; }
 .dgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .dcard { padding: 18px 12px; }
 .dcard .dstars { font-size: 26px; color: #f2b705; letter-spacing: 4px; margin: 4px 0; }
+/* 로그라이크 */
+.rstats { display: flex; gap: 22px; align-items: baseline; margin-bottom: 6px; }
+.rbig { font-family: 'Jua', system-ui, sans-serif; font-size: 26px; color: #fff4d6; }
+.rstats .rbig:nth-child(2) { color: #e5484d; }
+.rgrid { grid-template-columns: repeat(3, 1fr); }
