@@ -5,7 +5,8 @@ import type { Level } from '../core/level';
 import { E, W } from '../core/types';
 import { drawHamster, THEME, tubeCell, tubeText } from './art';
 import { copyLink, el, shareUrl, sizeCanvas, type Screen } from './runner';
-import { bestCode, bestHinted, bestPrice, isUnlocked } from './storage';
+import { bestCode, bestHinted, bestPrice, bestTime, bestTimeHinted, isUnlocked } from './storage';
+import { formatTime } from '../core/share';
 import { HIDE_PRICE } from './tutorial';
 
 const COLS = 5;
@@ -96,6 +97,8 @@ export function startMenu(root: HTMLElement, levels: Level[], selected: number, 
       c.append(el('div', 'lnum', open ? String(i + 1) : '🔒'), el('div', 'lname', open ? lv.name : '잠김'));
       const noPrice = HIDE_PRICE.has(lv.id);
       const bulb = best !== undefined && bestHinted(lv.id) ? ' 💡' : '';
+      const bt = bestTime(lv.id);
+      if (bt !== undefined) c.append(el('div', 'ltime', `⏱ ${formatTime(bt)}${bestTimeHinted(lv.id) ? ' 💡' : ''}`));
       c.append(el('div', 'lbest', best !== undefined ? (noPrice ? `★ 클리어${bulb}` : `★ ${best} / ${lv.budget}${bulb}`) : open ? (noPrice ? '처음 해 보기' : `예산 ${lv.budget}`) : ''));
       grid.append(c);
     });

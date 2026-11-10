@@ -10,8 +10,8 @@ import { BIN_WIDTH, type Dir, type PartType } from '../core/types';
 import { MINOS, PIECE_ORDER, type PieceLetter } from '../data/minos';
 import { artSize, burst, drawCelebration, hamsterIcon, renderArt, THEME, type Overlay, type Particle } from './art';
 import { copyLink, el, fitCanvas, renderHints, Runner, shareUrl, type Screen } from './runner';
-import { encodeShare } from '../core/share';
-import { bestPrice, isMuted, recordClear, setMuted } from './storage';
+import { encodeShare, formatTime } from '../core/share';
+import { bestPrice, bestTime, isMuted, recordClear, recordTime, setMuted } from './storage';
 import { Fx } from './fx';
 import { sfx } from './sound';
 import { nextHint, partFits, type Hint } from '../core/hint';
@@ -84,6 +84,8 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   left.append(modeBar, boardWrap, hints, msg);
   const fx = new Fx();
   let clearCard: HTMLElement | null = null;
+  /** 클리어 시간: 레벨 화면에 들어온 순간부터 (실행·리셋·고치기 포함) */
+  const startedAt = performance.now();
   const title = el('h1', '', `${o.number ? `${o.number}. ` : '시험 플레이 · '}${lv.name}`);
   const mech = el('div', 'mech', lv.mechanic);
   const priceBox = el('div', 'price');
@@ -407,7 +409,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   }
 
   /** 판 위 클리어 카드: 별 셋 (클리어 · 만든 사람 풀이 가격 이하 · 힌트 없이), 가격·기록, 다음 키 */
-  function showCard(price: number, isNew: boolean) {
+  function showCard(price: number, isNew: boolean, timeMs: number, newTime: boolean) {
     clearCard?.remove();
     const cardEl = el('div', 'clearcard');
     clearCard = cardEl;
@@ -430,6 +432,8 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       const best = o.record ? bestPrice(lv.id) : undefined;
       cardEl.append(el('div', 'cc-price', `가격 ${price} / ${lv.budget}${isNew ? ' · 새 최저 기록!' : best !== undefined ? ` · 최저 ${best}` : ''}`));
     }
+    const bt = o.record ? bestTime(lv.id) : undefined;
+    cardEl.append(el('div', 'cc-time', `⏱ ${formatTime(timeMs)}${newTime ? ' · 새 최단 기록!' : bt !== undefined ? ` · 최단 ${formatTime(bt)}` : ''}`));
     const keys = el('div', 'hints');
     const pairs: [string, string][] = [...(o.onNext ? ([['Enter', '다음 레벨']] as [string, string][]) : o.onAllClear ? ([['Enter', '끝 화면']] as [string, string][]) : []), ['C', '풀이 링크'], ['R', '다시 고치기']];
     renderHints(keys, pairs);
@@ -468,12 +472,14 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
       tut = null; // 깼으면 안내는 닫는다 (N 으로 다시 볼 수 있다)
       let best = '';
       const hinted = hintCount > 0;
-      clearCode = encodeShare(lv.id, play.layout(), hinted);
+      const timeMs = now - startedAt;
+      clearCode = encodeShare(lv.id, play.layout(), hinted, timeMs);
       if (o.record) {
         const isNew = recordClear(lv.id, j.price, clearCode, hinted);
+        const newTime = recordTime(lv.id, timeMs, hinted);
         best = isNew ? ' · 새 최저 기록!' : ` · 최저 ${bestPrice(lv.id)}`;
-        showCard(j.price, isNew);
-      } else showCard(j.price, false);
+        showCard(j.price, isNew, timeMs, newTime);
+      } else showCard(j.price, false, timeMs, false);
       say(`★ 클리어!${hidePrice ? '' : ` 가격 ${j.price}${best}`}${hintCount ? ` · 💡 힌트 ${hintCount}번` : ''}${o.onNext ? ' — Enter 다음 레벨' : o.onAllClear ? ' — Enter 끝 화면' : ''} · C 풀이 링크 복사`);
     } else {
       const why: string[] = [];
