@@ -182,3 +182,8 @@ canvas.board { border: 1px solid #2c3140; border-radius: 14px; }
 .lcard .ltime { font-size: 11px; color: #9be7c4; font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .crow .ctime, .csum .ctime { width: 74px; text-align: right; font-size: 12px; color: #9be7c4; font-family: 'JetBrains Mono', ui-monospace, monospace; }
 .clearcard .cc-time { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 14px; color: #5a4a33; margin: -4px 0 8px; }
+/* 오늘의 퍼즐 */
+.lcard.daily.locked { opacity: 0.55; }
+.dgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.dcard { padding: 18px 12px; }
+.dcard .dstars { font-size: 26px; color: #f2b705; letter-spacing: 4px; margin: 4px 0; }

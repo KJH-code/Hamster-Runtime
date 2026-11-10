@@ -11,11 +11,14 @@ import { HIDE_PRICE } from './tutorial';
 
 const COLS = 5;
 
-export function startMenu(root: HTMLElement, levels: Level[], selected: number, onOpen: (i: number) => void, onSandbox: () => void, onAllClear?: () => void): Screen {
+export function startMenu(root: HTMLElement, levels: Level[], selected: number, onOpen: (i: number) => void, onSandbox: () => void, onAllClear?: () => void, onDaily?: () => void): Screen {
   const ids = levels.map((l) => l.id);
   const allDone = levels.every((l) => bestPrice(l.id) !== undefined);
-  // 레벨 카드들 다음 = 샌드박스, (다 깼으면) 그다음 = 완주 기록
-  const n = levels.length + 1 + (allDone && onAllClear ? 1 : 0);
+  // 레벨 카드들 다음 = 오늘의 퍼즐, 샌드박스, (다 깼으면) 그다음 = 완주 기록
+  const D = levels.length; // 오늘의 퍼즐
+  const SB = D + 1; // 샌드박스
+  const n = SB + 1 + (allDone && onAllClear ? 1 : 0);
+  const dailyOpen = () => bestPrice(levels[0]?.id ?? '') !== undefined;
   let sel = Math.max(0, Math.min(selected, n - 1));
   let message = '';
   let alive = true;
@@ -37,11 +40,12 @@ export function startMenu(root: HTMLElement, levels: Level[], selected: number, 
   const term = [`$ hamster run --levels ${levels.length}`, `▸ ${cleared} / ${levels.length} cleared · 튜브 미노를 떨어뜨려 햄스터를 통으로`, '▸ press Enter'];
   const t0 = performance.now();
   const grid = el('div', 'lgrid');
+  const daily = el('div', 'lcard sandbox');
   const sandbox = el('div', 'lcard sandbox');
   const trophy = el('div', 'lcard sandbox');
   const status = el('div', 'status');
   const help = el('div', 'hints');
-  box.append(title, head, grid, sandbox, trophy, help, status);
+  box.append(title, head, grid, daily, sandbox, trophy, help, status);
 
   /** 타이틀: 투명 튜브 글자 로고 + 밑줄 튜브를 구르는 햄스터 + 타이핑되는 터미널 줄 */
   function drawTitle(t: number) {
@@ -102,11 +106,14 @@ export function startMenu(root: HTMLElement, levels: Level[], selected: number, 
       c.append(el('div', 'lbest', best !== undefined ? (noPrice ? `★ 클리어${bulb}` : `★ ${best} / ${lv.budget}${bulb}`) : open ? (noPrice ? '처음 해 보기' : `예산 ${lv.budget}`) : ''));
       grid.append(c);
     });
-    sandbox.className = 'lcard sandbox' + (sel === levels.length ? ' pick' : '');
+    daily.className = 'lcard sandbox daily' + (sel === D ? ' pick' : '') + (dailyOpen() ? '' : ' locked');
+    daily.innerHTML = '';
+    daily.append(el('div', 'lname', dailyOpen() ? '☀ 오늘의 퍼즐' : '🔒 오늘의 퍼즐'), el('div', 'lbest', dailyOpen() ? '매일 쌓기 하나 + 기계 하나 · 연속 기록' : '1번을 깨면 열린다'));
+    sandbox.className = 'lcard sandbox' + (sel === SB ? ' pick' : '');
     sandbox.innerHTML = '';
     sandbox.append(el('div', 'lname', '샌드박스 · 레벨 에디터'), el('div', 'lbest', '자유 배치, 직접 레벨 만들기'));
-    trophy.hidden = n === levels.length + 1;
-    trophy.className = 'lcard sandbox trophy' + (sel === levels.length + 1 ? ' pick' : '');
+    trophy.hidden = n === SB + 1;
+    trophy.className = 'lcard sandbox trophy' + (sel === SB + 1 ? ' pick' : '');
     trophy.innerHTML = '';
     trophy.append(el('div', 'lname', '🏆 완주 기록'), el('div', 'lbest', '레벨별 최저 가격 모아 보기'));
     help.innerHTML = '';
@@ -144,8 +151,9 @@ export function startMenu(root: HTMLElement, levels: Level[], selected: number, 
       });
     if (e.key === 'Enter' || e.key === ' ')
       return done(() => {
-        if (sel === L) return onSandbox();
-        if (sel === L + 1) return onAllClear?.();
+        if (sel === D) return dailyOpen() ? onDaily?.() : void (message = '1번을 먼저 깨면 오늘의 퍼즐이 열린다');
+        if (sel === SB) return onSandbox();
+        if (sel === SB + 1) return onAllClear?.();
         if (!isUnlocked(ids, sel)) return void (message = '잠긴 레벨 — 앞 레벨을 먼저 클리어');
         onOpen(sel);
       });

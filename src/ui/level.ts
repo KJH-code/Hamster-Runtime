@@ -26,6 +26,8 @@ export interface LevelScreenOpts {
   level: Level;
   /** 레벨 번호 (표시용). 없으면 시험 플레이 */
   number?: number;
+  /** 제목 (번호 대신, 예: 데일리) */
+  title?: string;
   /** 기록을 남기는가 (에디터 시험 플레이는 false) */
   record: boolean;
   onExit: () => void;
@@ -86,7 +88,7 @@ export function startLevel(root: HTMLElement, o: LevelScreenOpts): Screen {
   let clearCard: HTMLElement | null = null;
   /** 클리어 시간: 레벨 화면에 들어온 순간부터 (실행·리셋·고치기 포함) */
   const startedAt = performance.now();
-  const title = el('h1', '', `${o.number ? `${o.number}. ` : '시험 플레이 · '}${lv.name}`);
+  const title = el('h1', '', o.title ?? `${o.number ? `${o.number}. ` : '시험 플레이 · '}${lv.name}`);
   const mech = el('div', 'mech', lv.mechanic);
   const priceBox = el('div', 'price');
   const queueBox = el('div', 'qicons');
