@@ -4,7 +4,8 @@
  */
 import { applyLayout, buildFixed, queueItems, type Built } from '../core/level';
 import { computeLinks } from '../core/links';
-import { checkShare } from '../core/share';
+import { checkShare, decodeShare } from '../core/share';
+import { getDaily } from './daily';
 import { LEVELS } from '../data/levels';
 import { PRICES } from '../data/prices';
 import { artSize, renderArt, THEME } from './art';
@@ -20,7 +21,15 @@ export interface ReplayOpts {
 }
 
 export function startReplay(root: HTMLElement, o: ReplayOpts): Screen {
-  const res = checkShare(o.code, LEVELS, PRICES);
+  // 데일리 풀이면 그날 퍼즐을 만들어 같이 넘긴다
+  let pool = LEVELS;
+  try {
+    const m = /^daily-(\d{4}-\d{2}-\d{2})-(easy|hard)$/.exec(decodeShare(o.code).levelId);
+    if (m) pool = [...LEVELS, getDaily(m[1]!, m[2] as 'easy' | 'hard')];
+  } catch {
+    /* 깨진 코드는 checkShare 가 알려 준다 */
+  }
+  const res = checkShare(o.code, pool, PRICES);
   const lv = res.level;
   const idx = lv ? LEVELS.indexOf(lv) : -1;
   const open = idx >= 0 && isUnlocked(LEVELS.map((l) => l.id), idx);
@@ -58,7 +67,7 @@ export function startReplay(root: HTMLElement, o: ReplayOpts): Screen {
   };
   const verdict = el('div', 'pricebig' + (res.ok ? '' : ' over'));
   panel.append(
-    card(el('h2', '', '친구의 풀이'), el('h1', '', lv ? `${idx + 1}. ${lv.name}` : '알 수 없는 풀이'), lv ? el('div', 'mech', lv.mechanic) : el('div', '')),
+    card(el('h2', '', '친구의 풀이'), el('h1', '', lv ? (idx >= 0 ? `${idx + 1}. ${lv.name}` : lv.name) : '알 수 없는 풀이'), lv ? el('div', 'mech', lv.mechanic) : el('div', '')),
     card(el('h2', '', '엔진으로 다시 확인'), verdict),
   );
   if (res.ok) {
