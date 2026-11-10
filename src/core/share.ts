@@ -1,6 +1,7 @@
 /**
  * 풀이 공유 코드. 순수 로직.
- * 코드 = 레벨 id + 떨어뜨린 미노(순서) + 부품 (+ 힌트를 썼으면 표시) → 짧은 문자열 (base64url).
+ * 코드 = 레벨 id + 떨어뜨린 미노(순서) + 부품 (+ 힌트 표시, 클리어 시간 ms) → 짧은 문자열 (base64url).
+ * 시간은 엔진이 다시 확인할 수 없어서 보기용 (순위표에는 서버가 필요).
  * 받는 쪽은 코드를 믿지 않고 엔진(verifyLayout)으로 다시 돌려 클리어·가격을 확인한다.
  */
 import type { MinoDef } from '../data/minos';
@@ -26,7 +27,7 @@ function fromB64(s: string): string {
   return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
 }
 
-export function encodeShare(levelId: string, layout: Layout, hinted = false): string {
+export function encodeShare(levelId: string, layout: Layout, hinted = false, timeMs?: number): string {
   const minos = layout.minos.map((m) => [m.id, m.r, m.x, m.y]);
   const parts = layout.parts.map((p) => {
     let extra = '';
@@ -35,7 +36,9 @@ export function encodeShare(levelId: string, layout: Layout, hinted = false): st
     return [p.x, p.y, PART_CODE[p.type]! + extra];
   });
   // 힌트 표시는 끝에 1 을 붙인다 (없으면 예전 코드와 같은 모양)
-  return toB64(JSON.stringify(hinted ? [VERSION, levelId, minos, parts, 1] : [VERSION, levelId, minos, parts]));
+  const base = [VERSION, levelId, minos, parts];
+  if (timeMs !== undefined) return toB64(JSON.stringify([...base, hinted ? 1 : 0, Math.round(timeMs)]));
+  return toB64(JSON.stringify(hinted ? [...base, 1] : base));
 }
 
 export interface Shared {
@@ -43,6 +46,8 @@ export interface Shared {
   layout: Layout;
   /** 이 풀이를 만들 때 힌트(미노·부품 자리)를 봤는가 */
   hinted: boolean;
+  /** 클리어 시간 (ms). 없으면 예전 코드 */
+  timeMs?: number;
 }
 
 /** 코드 → 레벨 id + 배치. 깨졌으면 이유와 함께 throw */
@@ -56,8 +61,8 @@ export function decodeShare(code: string): Shared {
   const bad = (why: string): never => {
     throw new Error(`풀이 코드가 이상하다: ${why}`);
   };
-  if (!Array.isArray(raw) || (raw.length !== 4 && raw.length !== 5)) bad('모양');
-  const [v, levelId, minos, parts, hintFlag] = raw as unknown[];
+  if (!Array.isArray(raw) || raw.length < 4 || raw.length > 6) bad('모양');
+  const [v, levelId, minos, parts, hintFlag, time] = raw as unknown[];
   if (v !== VERSION) bad(`버전 ${String(v)}`);
   if (typeof levelId !== 'string') bad('레벨');
   if (!Array.isArray(minos) || !Array.isArray(parts)) bad('목록');
@@ -84,11 +89,12 @@ export function decodeShare(code: string): Shared {
     }
     layout.parts.push(lp);
   }
-  return { levelId: levelId as string, layout, hinted: hintFlag === 1 };
+  const timeMs = typeof time === 'number' && Number.isFinite(time) && time >= 0 ? time : undefined;
+  return { levelId: levelId as string, layout, hinted: hintFlag === 1, ...(timeMs !== undefined ? { timeMs } : {}) };
 }
 
 export type ShareCheck =
-  | { ok: true; level: Level; layout: Layout; judgement: Judgement; hinted: boolean }
+  | { ok: true; level: Level; layout: Layout; judgement: Judgement; hinted: boolean; timeMs?: number }
   | { ok: false; reason: string; level?: Level; layout?: Layout; judgement?: Judgement };
 
 /** 코드를 풀고 엔진으로 다시 돌려 확인 (가격은 코드가 아니라 판에서 다시 센다) */
@@ -109,11 +115,19 @@ export function checkShare(code: string, levels: Level[], prices: PriceTable, de
     const why = j.loop ? '무한 루프' : !j.binsOk.every(Boolean) ? '통 조건이 맞지 않는다' : `예산 초과 (${j.price} > ${level.budget})`;
     return { ok: false, reason: why, level, layout: sh.layout, judgement: j };
   }
-  return { ok: true, level, layout: sh.layout, judgement: j, hinted: sh.hinted };
+  return { ok: true, level, layout: sh.layout, judgement: j, hinted: sh.hinted, ...(sh.timeMs !== undefined ? { timeMs: sh.timeMs } : {}) };
 }
 
 /** 링크 해시(#s=...)에서 코드 꺼내기 */
 export function shareFromHash(hash: string): string | null {
   const m = /^#s=([A-Za-z0-9_-]+)$/.exec(hash);
   return m ? m[1]! : null;
+}
+
+/** 시간 보기: 1:23.4 (1시간 넘으면 61:00.0 처럼 분으로) */
+export function formatTime(ms: number): string {
+  const d = Math.floor(ms / 100); // 0.1초 단위
+  const m = Math.floor(d / 600);
+  const sec = Math.floor((d % 600) / 10);
+  return `${m}:${String(sec).padStart(2, '0')}.${d % 10}`;
 }
