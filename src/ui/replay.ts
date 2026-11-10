@@ -9,7 +9,8 @@ import { LEVELS } from '../data/levels';
 import { PRICES } from '../data/prices';
 import { artSize, renderArt, THEME } from './art';
 import { el, fitCanvas, renderHints, Runner, type Screen } from './runner';
-import { bestPrice, isUnlocked } from './storage';
+import { bestPrice, bestTime, isUnlocked } from './storage';
+import { formatTime } from '../core/share';
 
 export interface ReplayOpts {
   code: string;
@@ -64,6 +65,11 @@ export function startReplay(root: HTMLElement, o: ReplayOpts): Screen {
     verdict.textContent = `✓ 클리어 · 가격 ${res.judgement.price} / ${res.level.budget}${res.hinted ? ' · 💡 힌트 사용' : ''}`;
     const mine = bestPrice(res.level.id);
     if (mine !== undefined) panel.lastElementChild!.append(el('div', 'dim', `내 최저 기록 ${mine}`));
+    if (res.timeMs !== undefined) {
+      const myT = bestTime(res.level.id);
+      const cmp = myT === undefined ? '' : myT < res.timeMs ? ` · 나 ${formatTime(myT)} (내가 ${formatTime(res.timeMs - myT)} 빠름)` : myT > res.timeMs ? ` · 나 ${formatTime(myT)} (친구가 ${formatTime(myT - res.timeMs)} 빠름)` : ` · 나 ${formatTime(myT)} (같음)`;
+      panel.lastElementChild!.append(el('div', 'dim', `⏱ 친구 ${formatTime(res.timeMs)}${cmp}`));
+    }
   } else {
     verdict.textContent = `✗ ${res.reason}`;
     panel.lastElementChild!.append(el('div', 'dim', '이 풀이는 이 게임에서 깨지지 않는다 (코드가 바뀌었거나 레벨이 바뀜)'));

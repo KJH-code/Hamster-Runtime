@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkShare, decodeShare, encodeShare, shareFromHash } from '../src/core/share';
+import { checkShare, decodeShare, encodeShare, formatTime, shareFromHash } from '../src/core/share';
 import { LEVELS } from '../src/data/levels';
 import { PRICES } from '../src/data/prices';
 
@@ -55,5 +55,22 @@ describe('풀이 공유 코드', () => {
     expect(shareFromHash('#s=abc_-1')).toBe('abc_-1');
     expect(shareFromHash('#x=abc')).toBeNull();
     expect(shareFromHash('')).toBeNull();
+  });
+});
+
+describe('클리어 시간', () => {
+  it('시간을 실은 코드는 시간·힌트를 돌려주고, 예전 코드는 시간 없음', () => {
+    const l = LEVELS.find((x) => x.id.startsWith('01'))!;
+    const d = decodeShare(encodeShare(l.id, l.solution!, false, 83456.7));
+    expect(d.timeMs).toBe(83457);
+    expect(d.hinted).toBe(false);
+    expect(decodeShare(encodeShare(l.id, l.solution!, true, 1000)).hinted).toBe(true);
+    expect(decodeShare(encodeShare(l.id, l.solution!)).timeMs).toBeUndefined();
+  });
+  it('formatTime: 분:초.0.1초', () => {
+    expect(formatTime(0)).toBe('0:00.0');
+    expect(formatTime(83457)).toBe('1:23.4');
+    expect(formatTime(599999)).toBe('9:59.9');
+    expect(formatTime(3725000)).toBe('62:05.0');
   });
 });

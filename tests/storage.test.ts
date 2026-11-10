@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { _resetForTest, bestCode, bestHinted, bestPrice, isUnlocked, recordClear } from '../src/ui/storage';
+import { _resetForTest, bestCode, bestHinted, bestPrice, bestTime, bestTimeHinted, isUnlocked, recordClear, recordTime } from '../src/ui/storage';
 
 // 테스트 환경에는 localStorage 가 없다 → 메모리로 동작하는지 (try/catch 경로)
 describe('기록 (저장소 없음)', () => {
@@ -55,5 +55,25 @@ describe('최저 기록 풀이 코드', () => {
     expect(bestCode('a')).toBe('X');
     recordClear('a', 8, 'Z');
     expect(bestCode('a')).toBe('Z');
+  });
+});
+
+describe('최단 시간 (가격과 따로)', () => {
+  beforeEach(() => _resetForTest());
+  it('더 빠르면 새 기록, 느리면 그대로, 같은 시간을 힌트 없이 내면 💡 사라짐', () => {
+    expect(recordTime('a', 5000, true)).toBe(true);
+    expect(bestTimeHinted('a')).toBe(true);
+    expect(recordTime('a', 6000)).toBe(false);
+    expect(bestTime('a')).toBe(5000);
+    expect(recordTime('a', 5000)).toBe(false);
+    expect(bestTimeHinted('a')).toBe(false);
+    expect(recordTime('a', 4000, false)).toBe(true);
+    expect(bestTime('a')).toBe(4000);
+  });
+  it('가격 기록과 섞이지 않는다', () => {
+    recordClear('a', 10, 'c', false);
+    expect(bestTime('a')).toBeUndefined();
+    recordTime('a', 3000);
+    expect(bestPrice('a')).toBe(10);
   });
 });
