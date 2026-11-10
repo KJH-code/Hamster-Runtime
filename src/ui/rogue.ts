@@ -5,7 +5,7 @@
 import { kstDate } from '../core/daily';
 import { verifyLayout } from '../core/level';
 import { PART_NAMES } from '../core/parts';
-import { clearFloor, floorLevel, newRun, parseRun, pickReward, runPrices, skipFloor, weeklySeed, type Reward, type RunState } from '../core/rogue';
+import { budgetMul, clearFloor, floorLevel, newRun, parseRun, pickReward, runPrices, skipFloor, weeklySeed, type Reward, type RunState } from '../core/rogue';
 import { MINOS } from '../data/minos';
 import { PRICES } from '../data/prices';
 import { RELICS } from '../data/relics';
@@ -118,6 +118,7 @@ export function startRogue(root: HTMLElement, o: RogueOpts): Screen {
       card.append(el('div', 'dim', `미노: ${run.minos.map(minoName).join(' · ')}`));
       card.append(el('div', 'dim', `부품: ${run.parts.map((t) => PART_NAMES[t]).join(' · ') || '없음'}`));
       card.append(el('div', 'dim', `유물: ${run.relics.map((id) => relicOf(id)?.name ?? id).join(' · ') || '없음'}`));
+      card.append(el('div', 'dim', `이번 층 예산 = 참조 풀이 × ${budgetMul(run.floor).toFixed(2)} + 지갑 (층이 오를수록 줄어든다 — 모아 둔 돈이 필요해진다)`));
       card.append(el('div', 'dim', `씨앗 ${run.seed}`));
       if (view === 'reward') {
         const grid = el('div', 'dgrid rgrid');
